@@ -1,5 +1,9 @@
 """Instagram Graph API client — async, rate-limit aware, logs every call.
 
+Targets the **Instagram API with Instagram Login** (host ``graph.instagram.com``).
+The access token is user-scoped, so data calls use ``/me`` and ``/me/media`` —
+no Facebook Page traversal.
+
 ⚠️ SHAPES UNVERIFIED. The field lists and response parsing in the ``get_*``
 methods follow architecture.md / api-integration.md, but the REAL response
 shapes are confirmed by Phase 2 tasks V1–V6, which save fixtures to
@@ -179,9 +183,10 @@ class IGClient:
     # --- API methods. ⚠️ Response shapes UNVERIFIED until V1–V6. ---
 
     async def get_user_profile(
-        self, fields: str = "username,followers_count,media_count"
+        self, fields: str = "user_id,username,followers_count,media_count"
     ) -> dict:
-        resp = await self._get(settings.ig_user_id or "me", {"fields": fields})
+        # Instagram Login: token is user-scoped, so /me resolves to the IG user.
+        resp = await self._get("me", {"fields": fields})
         return resp.json()
 
     async def list_media(
@@ -197,7 +202,7 @@ class IGClient:
         params: dict = {"fields": fields, "limit": limit}
         if after:
             params["after"] = after
-        resp = await self._get(f"{settings.ig_user_id}/media", params)
+        resp = await self._get("me/media", params)
         return self._page(resp.json())
 
     async def get_comments(
