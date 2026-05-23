@@ -22,19 +22,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Meta / Instagram credentials (filled after Phase 0) ---
+    # --- Meta / Instagram Graph API credentials (filled after Phase 0) ---
     fb_app_id: str | None = None
     fb_app_secret: str | None = None
-    # Instagram Login uses the *Instagram* app secret for ig_exchange_token, which
-    # may differ from fb_app_secret. Optional; falls back to fb_app_secret if unset.
-    ig_app_secret: str | None = None
     ig_user_id: str | None = None
     ig_access_token: str | None = None
 
-    # We use the "Instagram API with Instagram Login" path → host graph.instagram.com.
-    # Version VERIFY/UPDATE during Phase 2 (api-integration.md).
+    # Graph API version to call. VERIFY/UPDATE during Phase 2 (api-integration.md).
     graph_api_version: str = "v21.0"
-    graph_api_base_url: str = "https://graph.instagram.com"
+    graph_api_base_url: str = "https://graph.facebook.com"
 
     # --- App config (names mirror .env.example) ---
     database_path: Path = Path("./ig_pulse.db")
@@ -53,24 +49,26 @@ class Settings(BaseSettings):
 
     @property
     def graph_api_url(self) -> str:
-        """Full versioned base for data calls, e.g. https://graph.instagram.com/v21.0"""
+        """Full versioned base, e.g. https://graph.facebook.com/v21.0"""
         return f"{self.graph_api_base_url}/{self.graph_api_version}"
 
-    @property
-    def app_secret(self) -> str | None:
-        """Secret used for token exchange/refresh (Instagram secret, else Facebook)."""
-        return self.ig_app_secret or self.fb_app_secret
-
     def require_ig_credentials(self) -> None:
-        """Raise if the access token is missing. Call before any API use.
-
-        Only IG_ACCESS_TOKEN is needed for data calls (Instagram Login scopes the
-        token to the user, so we call /me directly — no IG_USER_ID required).
-        """
-        if not self.ig_access_token:
+        """Raise if any Graph API credential is missing. Call before any API use."""
+        missing = [
+            name
+            for name, value in {
+                "FB_APP_ID": self.fb_app_id,
+                "FB_APP_SECRET": self.fb_app_secret,
+                "IG_USER_ID": self.ig_user_id,
+                "IG_ACCESS_TOKEN": self.ig_access_token,
+            }.items()
+            if not value
+        ]
+        if missing:
             raise RuntimeError(
-                "Missing IG_ACCESS_TOKEN. Complete Phase 0 (docs/phase0-setup.md) "
-                "and fill .env."
+                "Missing Instagram credentials: "
+                + ", ".join(missing)
+                + ". Complete Phase 0 (docs/phase0-setup.md) and fill .env."
             )
 
 
