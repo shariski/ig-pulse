@@ -27,3 +27,13 @@ account via `scripts/sentiment_compare.py`. Models agreed on 21/40 (52%).
 mis-routes XLM-RoBERTa's SentencePiece tokenizer through the tiktoken parser and
 crashes. cardiffnlp also requires `sentencepiece` + `protobuf` (both in the `ml`
 extra).
+
+## Multi-account (Phase 2) — 2026-05-23
+
+- B1 scope: multi-account promoted from out-of-MVP, user-approved.
+- B12 deviation: per-account IG tokens are stored in registry.db (plaintext,
+  gitignored, local-only) — same trust level as the prior single .env token.
+  FB_APP_ID/SECRET remain in .env (one shared Meta app; each IG is a tester).
+- Auth: argon2 (argon2-cffi). Sessions via Starlette SessionMiddleware.
+- Storage: one SQLite file per IG account (data/acct_<id>.db) + a registry.db
+  (users + ig_accounts). Existing single-account data adopted via `cli migrate`.

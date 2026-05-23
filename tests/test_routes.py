@@ -7,19 +7,30 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from app import db
+from app import registry
 from app.config import settings
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, "database_path", tmp_path / "test.db")
-    conn = db.connect()
-    db.run_migrations(conn)
-    conn.close()
+    monkeypatch.setattr(settings, "database_path", tmp_path / "legacy.db")
+    monkeypatch.setattr(registry.settings, "registry_path", tmp_path / "registry.db")
+    monkeypatch.setattr(registry.settings, "data_dir", tmp_path / "data")
     from app.main import app
 
-    with TestClient(app) as c:  # `with` runs the lifespan (startup migrations)
+    with TestClient(app) as c:
+        c.post("/register", data={"username": "u", "password": "password1", "confirm": "password1"})
+        rconn = registry.connect()
+        uid = registry.get_user_by_name(rconn, "u")["id"]
+        aid = registry.create_account(rconn, uid, "1", "u_ig", "tok", None)
+        acct = registry.get_account(rconn, aid)
+        rconn.close()
+        from app.db import connect as dconn
+        from app.db import run_migrations
+        d = dconn(acct["db_path"])
+        run_migrations(d)
+        d.close()
+        c.post("/accounts/switch", data={"account_id": aid})
         yield c
 
 
