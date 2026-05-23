@@ -1,44 +1,53 @@
-"""
-Word cloud PNG renderer.
+"""Word cloud PNG renderer (export only).
 
 Accepts pre-filtered word frequencies (already stopword-cleaned by the caller)
 and returns a PIL Image — no disk I/O here; the export module handles that.
+Styled to the editorial palette: cream surface, dark ink with occasional
+burnt-orange accent words, to echo the on-screen cards.
 
-Note: the default WordCloud font may not render emoji glyphs. Emoji are
-largely filtered upstream by the stopword pipeline (see architecture R6), so
-this is acceptable for MVP.
+Note: the default WordCloud font is not Lora (the lib needs a .ttf path for a
+custom font; not bundled). Emoji are largely filtered upstream (architecture R6).
 """
 
 from PIL import Image
 from wordcloud import WordCloud as WordCloudLib
+
+_BG = "#faf7f2"
+_INK = "#1a1815"
+_ACCENT = "#ff5b35"
+
+
+def _color_func(word, font_size, position, orientation, random_state=None, **kwargs):
+    """Dark ink for most words; ~1 in 5 gets the burnt-orange accent."""
+    r = random_state.random() if random_state is not None else 0.5
+    return _ACCENT if r < 0.2 else _INK
 
 
 def render_wordcloud(
     freqs: list[tuple[str, int]],
     width: int = 1080,
     height: int = 1080,
-    background_color: str = "white",
+    background_color: str = _BG,
 ) -> Image.Image:
-    """
-    Render word frequencies as a word cloud and return a PIL Image.
+    """Render word frequencies as a word cloud and return a PIL Image.
 
     Args:
-        freqs: List of (word, count) tuples, sorted descending, stopword-filtered.
-               Top 100 is the expected input from the word frequency analysis.
-        width: Image width in pixels (default 1080 for IG square).
-        height: Image height in pixels (default 1080 for IG square).
-        background_color: Background colour string passed to WordCloud.
+        freqs: (word, count) tuples, sorted desc, stopword-filtered (top ~100).
+        width/height: pixels (default 1080 square).
+        background_color: surface colour (default cream).
 
     Returns:
-        PIL Image of the word cloud, or a blank white Image if freqs is empty.
+        PIL Image, or a blank cream Image if freqs is empty.
     """
     if not freqs:
-        return Image.new("RGB", (width, height), color="white")
+        return Image.new("RGB", (width, height), color=background_color)
 
-    freq_dict = dict(freqs)
     wc = WordCloudLib(
         width=width,
         height=height,
         background_color=background_color,
-    ).generate_from_frequencies(freq_dict)
+        color_func=_color_func,
+        prefer_horizontal=0.9,
+        margin=8,
+    ).generate_from_frequencies(dict(freqs))
     return wc.to_image()
