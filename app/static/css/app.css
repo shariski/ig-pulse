@@ -369,3 +369,12 @@ a { color: inherit; }
   .insights { grid-template-columns: 1fr; }
   .hero-meta { gap: 24px; flex-wrap: wrap; }
 }
+
+/* ============================ AUTH PAGES ============================ */
+.auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.auth-card { width: 100%; max-width: 420px; }
+.auth-label { display: block; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.6; margin: 14px 0 6px; }
+.auth-input { width: 100%; padding: 10px 12px; border: 1px solid var(--on-card-line); border-radius: var(--radius-sm); background: var(--on-card-fill); color: inherit; font-family: var(--font-body); font-size: 15px; }
+.auth-error { background: rgba(255,91,53,0.14); color: var(--neg); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 8px; }
+.auth-foot { margin-top: 20px; font-size: 13px; opacity: 0.7; }
+.auth-foot a { color: var(--accent); }
