@@ -25,8 +25,12 @@ dependencies = [
 # Heavy / finicky wheels. Install with: uv sync --extra ml
 # (torch+transformers for sentiment, kaleido for Plotly PNG export, wordcloud for the cloud render)
 ml = [
-    "transformers",
+    # Pin to the stable 4.x line: transformers 5.x mis-routes XLM-RoBERTa's
+    # SentencePiece tokenizer through the tiktoken parser and crashes (R8).
+    "transformers>=4.44,<5",
     "torch",
+    "sentencepiece",  # XLM-RoBERTa tokenizer (cardiffnlp candidate) needs this
+    "protobuf",  # XLM-RoBERTa SentencePiece converter reads a protobuf vocab
     "kaleido",
     "wordcloud",
 ]

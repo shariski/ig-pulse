@@ -42,10 +42,12 @@ class Settings(BaseSettings):
     exports_dir: Path = Path("./exports")
     fixtures_dir: Path = Path("./tests/fixtures")
 
-    # --- Sentiment model (final choice made in Phase 4; pin revision per R8) ---
-    sentiment_model: str = "tabularisai/multilingual-sentiment-analysis"
-    sentiment_model_fallback: str = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
-    sentiment_model_revision: str | None = None
+    # --- Sentiment model (chosen empirically in Phase 4 — see docs/decisions.md) ---
+    # cardiffnlp won the comparison: reads real positives/emoji/compliments that
+    # tabularisai mislabeled negative (R1). Revision pinned for reproducibility (R8).
+    sentiment_model: str = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+    sentiment_model_fallback: str = "tabularisai/multilingual-sentiment-analysis"
+    sentiment_model_revision: str | None = "f2f1202b1bdeb07342385c3f807f9c07cd8f5cf8"
 
     @property
     def graph_api_url(self) -> str:
