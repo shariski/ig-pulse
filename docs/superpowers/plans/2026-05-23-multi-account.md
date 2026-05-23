@@ -48,8 +48,9 @@ In `pyproject.toml` `[project].dependencies`, add `"argon2-cffi",` (auth is core
 
 - [ ] **Step 2: Sync**
 
-Run: `uv sync`
-Expected: installs `argon2-cffi` (+ `argon2-cffi-bindings`).
+Run: `uv sync --extra ml`  (the `--extra ml` is REQUIRED — a plain `uv sync` uninstalls
+torch/wordcloud/kaleido and breaks the chart/export tests.)
+Expected: installs `argon2-cffi` (+ `argon2-cffi-bindings`), ml extras retained.
 
 - [ ] **Step 3: Extend config**
 
