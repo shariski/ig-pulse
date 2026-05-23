@@ -30,20 +30,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 #    (app/analysis/stopwords.py calls nltk.download on a cold cache otherwise).
 RUN python -c "import nltk; nltk.download('stopwords', download_dir='/usr/local/share/nltk_data')"
 
-# 3) Chrome for kaleido v1 (Plotly PNG export). kaleido no longer bundles Chromium;
-#    the distro chromium package brings the binary + all its runtime libs via apt,
-#    and choreographer auto-discovers /usr/bin/chromium (run headless --no-sandbox).
-#    Placed AFTER uv sync so the heavy torch layer stays cached on the VPS — i.e.
-#    a redeploy pulls only this ~270MB layer, not the whole image. fonts = chart text.
-RUN apt-get update && apt-get install -y --no-install-recommends chromium fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
-
-# 4) Smoke-test Plotly PNG export at build time so a broken Chrome/kaleido setup
-#    fails CI instead of silently 500-ing the export downloads in production.
-RUN python -c "import plotly.graph_objects as go; go.Figure().to_image(format='png')"
-
-# 5) Application source.
+# 3) Application source.
 COPY app ./app
+
+# NOTE: Plotly PNG export (kaleido v1) needs a system Chrome, which won't fit the
+# VPS's tight disk, so it's intentionally NOT installed here — the 3 Plotly export
+# buttons (sentiment/timetrend/phrases) 500 on this deploy. wordfreq export (PIL)
+# works. To re-enable: free disk, then add `chromium` after this nltk step.
 
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
