@@ -6,6 +6,11 @@ ig_pulse.db
 logs/
 exports/
 
+# Raw API fixtures contain real audience comments/usernames (R7) — don't commit.
+# (Sanitized sample fixtures, if any, can be force-added explicitly.)
+tests/fixtures/*.json
+tests/fixtures/*.txt
+
 # Python
 __pycache__/
 *.pyc

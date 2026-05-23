@@ -107,9 +107,16 @@ def cmd_refresh_token(args: argparse.Namespace) -> None:
 
 
 def cmd_fetch(args: argparse.Namespace) -> None:
-    raise SystemExit(
-        "`fetch` is implemented in Phase 2 — it needs app/ig_client.py and the fetch "
-        "orchestrator (plan.md Phase 2/3). Build those against the real API first."
+    if args.scope != "all":
+        raise SystemExit(f"scope={args.scope!r} not implemented yet; use --scope all.")
+    import asyncio
+
+    from app.fetch import fetch_all
+
+    s = asyncio.run(fetch_all())
+    print(
+        f"Fetched {s['posts']} posts, {s['comments']} comments in "
+        f"{s['api_calls']} API calls (run {s['run_id']})."
     )
 
 
