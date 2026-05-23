@@ -14,9 +14,13 @@ from contextlib import asynccontextmanager
 from logging.handlers import TimedRotatingFileHandler
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
-from app.config import settings
+from app import registry as _registry
+from app.auth import _Redirect
+from app.config import ensure_session_secret, settings
 from app.db import connect, run_migrations
 from app.routes import analysis, dashboard, export
 
@@ -40,12 +44,24 @@ async def lifespan(app: FastAPI):
     conn = connect()
     run_migrations(conn)
     conn.close()
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    rconn = _registry.connect()
+    _registry.run_migrations(rconn)
+    rconn.close()
     logging.getLogger("ig_pulse").info("IG Pulse started; db=%s", settings.database_path)
     yield
 
 
 app = FastAPI(title="IG Pulse", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.add_middleware(SessionMiddleware, secret_key=ensure_session_secret())
+
+
+@app.exception_handler(_Redirect)
+async def _redirect_handler(request, exc: _Redirect):
+    return RedirectResponse(exc.to, status_code=302)
+
+
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
 app.include_router(export.router)
