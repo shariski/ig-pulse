@@ -128,14 +128,14 @@ def _poll_span() -> HTMLResponse:
     )
 
 
-def _do_refresh(db_path: str, token: str) -> None:
+def _do_refresh(db_path: str, token: str, ig_user_id: str) -> None:
     """Background: re-fetch posts/comments, then run sentiment on the new ones."""
     try:
         from app.analysis.sentiment import analyze_comments
         from app.db import connect as _connect
         from app.fetch import fetch_all
 
-        asyncio.run(fetch_all(db_path=db_path, access_token=token))
+        asyncio.run(fetch_all(db_path=db_path, access_token=token, ig_user_id=ig_user_id))
         c = _connect(db_path)
         analyze_comments(c)
         c.close()
@@ -151,7 +151,7 @@ def refresh(account=auth.current_account):
         _refresh_state["running"] = True
         threading.Thread(
             target=_do_refresh,
-            args=(account["db_path"], account["access_token"]),
+            args=(account["db_path"], account["access_token"], account["ig_user_id"]),
             daemon=True,
         ).start()
     return _poll_span()

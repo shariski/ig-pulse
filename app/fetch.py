@@ -60,6 +60,7 @@ async def fetch_all(
     *,
     db_path: str | None = None,
     access_token: str | None = None,
+    ig_user_id: str | None = None,
     with_replies: bool = True,
 ) -> dict:
     """Pull all posts + their comments (+ depth-1 replies) into SQLite.
@@ -71,14 +72,17 @@ async def fetch_all(
     if own:
         run_migrations(db)
     try:
-        return await _run_fetch(db, with_replies, access_token)
+        return await _run_fetch(db, with_replies, access_token, ig_user_id)
     finally:
         if own:
             db.close()
 
 
 async def _run_fetch(
-    conn: sqlite3.Connection, with_replies: bool, access_token: str | None = None
+    conn: sqlite3.Connection,
+    with_replies: bool,
+    access_token: str | None = None,
+    ig_user_id: str | None = None,
 ) -> dict:
     run_id = str(uuid.uuid4())
     conn.execute(
@@ -89,7 +93,7 @@ async def _run_fetch(
 
     posts = comments = api_calls = 0
     try:
-        async with IGClient(access_token=access_token) as ig:
+        async with IGClient(access_token=access_token, ig_user_id=ig_user_id) as ig:
             for m in await _all_media(ig):
                 upsert_post(conn, _post_from_api(m, _now()))
                 posts += 1

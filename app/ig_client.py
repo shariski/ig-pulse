@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass
 
@@ -27,6 +28,14 @@ import httpx
 from app.config import settings
 
 logger = logging.getLogger("ig_pulse.ig_client")
+
+# B12: the access token rides as a query param, so httpx error messages embed it
+# in the URL. Redact it before any exception/string can reach a log or the DB.
+_ACCESS_TOKEN_RE = re.compile(r"(access_token=)[^&\s]+")
+
+
+def _redact(text: str) -> str:
+    return _ACCESS_TOKEN_RE.sub(r"\1<redacted>", text)
 
 # architecture.md: <75% proceed, 75–90% warn, ≥90% sleep 60s before next call.
 USAGE_WARN_PCT = 75.0
@@ -95,11 +104,16 @@ class IGClient:
         self,
         access_token: str | None = None,
         *,
+        ig_user_id: str | None = None,
         base_url: str | None = None,
         backoff_schedule: tuple[float, ...] = DEFAULT_BACKOFF_SCHEDULE,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self._token = access_token or settings.ig_access_token
+        # Per-account id (multi-account); falls back to the global .env value for
+        # the legacy single-account path. Without this, multi-account fetches hit
+        # /None/media because settings.ig_user_id is unset.
+        self._ig_user_id = ig_user_id or settings.ig_user_id
         self._base_url = (base_url or settings.graph_api_url).rstrip("/")
         self._backoff_schedule = backoff_schedule
         self._client = client or httpx.AsyncClient(timeout=30)
@@ -138,13 +152,13 @@ class IGClient:
                     )
                     await asyncio.sleep(delay)
                     continue
-                resp.raise_for_status()  # attempts exhausted
+                self._raise_for_status(resp)  # attempts exhausted
 
             if resp.status_code == 400 and self._looks_like_token_error(resp):
                 raise IGTokenError(
                     "Instagram token invalid/expired. Run `python -m app.cli refresh-token`."
                 )
-            resp.raise_for_status()
+            self._raise_for_status(resp)
 
             await self._honor_usage(resp)
             return resp
@@ -161,6 +175,17 @@ class IGClient:
         elif action == "sleep":
             logger.warning("Graph API usage >=90%%; sleeping %ss.", USAGE_SLEEP_SECONDS)
             await asyncio.sleep(USAGE_SLEEP_SECONDS)
+
+    @staticmethod
+    def _raise_for_status(resp: httpx.Response) -> None:
+        """Like ``resp.raise_for_status()`` but with the access token redacted from
+        the error message (B12 — the token is otherwise embedded in the URL)."""
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise httpx.HTTPStatusError(
+                _redact(str(e)), request=e.request, response=e.response
+            ) from None
 
     @staticmethod
     def _looks_like_token_error(resp: httpx.Response) -> bool:
@@ -181,7 +206,7 @@ class IGClient:
     async def get_user_profile(
         self, fields: str = "username,followers_count,media_count"
     ) -> dict:
-        resp = await self._get(settings.ig_user_id or "me", {"fields": fields})
+        resp = await self._get(self._ig_user_id or "me", {"fields": fields})
         return resp.json()
 
     async def list_media(
@@ -197,7 +222,7 @@ class IGClient:
         params: dict = {"fields": fields, "limit": limit}
         if after:
             params["after"] = after
-        resp = await self._get(f"{settings.ig_user_id}/media", params)
+        resp = await self._get(f"{self._ig_user_id}/media", params)
         return self._page(resp.json())
 
     async def get_comments(

@@ -13,6 +13,7 @@ from app.ig_client import (
     IGClient,
     IGTokenError,
     Page,
+    _redact,
     parse_business_use_case_usage,
     usage_action,
 )
@@ -135,4 +136,47 @@ async def test_page_parsing_extracts_cursor():
     assert isinstance(page, Page)
     assert page.data == [{"id": "1"}]
     assert page.after == "C2"
+    await ig.aclose()
+
+
+# --------------------------------------------------------------------------- #
+# Multi-account: list_media must use the PER-ACCOUNT ig_user_id, not the global
+# settings value (the /None/media bug that broke fetch on the multi-account VPS).
+# --------------------------------------------------------------------------- #
+
+
+async def test_list_media_uses_per_account_ig_user_id():
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        return httpx.Response(200, json={"data": [], "paging": {}})
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://example")
+    ig = IGClient(access_token="tok", ig_user_id="17841400993474526", client=http)
+    await ig.list_media()
+    assert "/17841400993474526/media" in seen["url"]
+    assert "/None/media" not in seen["url"]
+    await ig.aclose()
+
+
+# --------------------------------------------------------------------------- #
+# B12: the access token must never survive into an error message / log.
+# --------------------------------------------------------------------------- #
+
+
+def test_redact_strips_access_token():
+    raw = "Client error '400' for url 'https://x/None/media?fields=a&access_token=EAAsecret123'"
+    out = _redact(raw)
+    assert "EAAsecret123" not in out
+    assert "access_token=<redacted>" in out
+
+
+async def test_http_error_message_redacts_token():
+    ig = _client_with_responses([httpx.Response(400, json={"error": {}})])
+    with pytest.raises(httpx.HTTPStatusError) as ei:
+        await ig._get("None/media")
+    msg = str(ei.value)
+    assert "access_token=tok" not in msg
+    assert "access_token=<redacted>" in msg
     await ig.aclose()

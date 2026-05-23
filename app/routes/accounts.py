@@ -19,13 +19,13 @@ router = APIRouter()
 logger = logging.getLogger("ig_pulse.routes.accounts")
 
 
-def _kickoff_fetch(db_path: str, token: str) -> None:
+def _kickoff_fetch(db_path: str, token: str, ig_user_id: str) -> None:
     def run():
         try:
             from app.analysis.sentiment import analyze_comments
             from app.db import connect
             from app.fetch import fetch_all
-            asyncio.run(fetch_all(db_path=db_path, access_token=token))
+            asyncio.run(fetch_all(db_path=db_path, access_token=token, ig_user_id=ig_user_id))
             c = connect(db_path)
             analyze_comments(c)
             c.close()
@@ -84,6 +84,6 @@ def add_account(request: Request, short_token: str = Form(...), user=auth.curren
     dconn = data_connect(acct["db_path"])
     data_migrations(dconn)
     dconn.close()
-    _kickoff_fetch(acct["db_path"], info.access_token)
+    _kickoff_fetch(acct["db_path"], info.access_token, info.ig_user_id)
     request.session["account_id"] = aid
     return RedirectResponse("/", status_code=302)
