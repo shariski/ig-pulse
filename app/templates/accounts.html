@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Akun — IG Pulse{% endblock %}
+{% block content %}
+<div class="auth-wrap" style="align-items:flex-start;padding-top:64px;">
+  <div style="width:100%;max-width:560px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;">
+      <div class="brand-mark" style="font-family:var(--font-display);font-size:32px;font-weight:700;letter-spacing:-0.04em;">Pulse<span style="color:var(--accent)">.</span></div>
+      <a href="/logout" style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);">Keluar →</a>
+    </div>
+
+    {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+
+    {% if accounts %}
+    <div class="section-label">Akun Instagram kamu</div>
+    {% for a in accounts %}
+    <article class="card" style="padding:24px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:16px;">
+      <div>
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:600;">@{{ a.username or a.ig_user_id }}</div>
+        <div class="card-sub">{% if a.id == active %}sedang aktif{% else %}akun tersimpan{% endif %}</div>
+      </div>
+      <form method="post" action="/accounts/switch">
+        <input type="hidden" name="account_id" value="{{ a.id }}" />
+        <button class="card-action" type="submit">{% if a.id == active %}Buka dasbor →{% else %}Gunakan{% endif %}</button>
+      </form>
+    </article>
+    {% endfor %}
+    {% else %}
+    <p style="color:var(--fg-muted);margin-bottom:24px;">Belum ada akun Instagram terhubung.</p>
+    {% endif %}
+
+    <article class="card" style="margin-top:24px;">
+      <h2 class="card-title" style="font-size:28px;margin-bottom:8px;">Tambah <em>akun</em> Instagram</h2>
+      <p style="font-size:13px;opacity:0.7;margin-bottom:12px;">Tempel token sementara dari Graph API Explorer. Panduan: <code>docs/phase0-setup.md</code>.</p>
+      <form method="post" action="/accounts/add">
+        <label class="auth-label">Token sementara</label>
+        <textarea class="auth-input" name="short_token" rows="3" required placeholder="EAAB..."></textarea>
+        <button class="cta" type="submit" style="margin-top:16px;">Hubungkan →</button>
+      </form>
+    </article>
+  </div>
+</div>
+{% endblock %}

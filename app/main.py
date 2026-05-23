@@ -22,7 +22,7 @@ from app import registry as _registry
 from app.auth import _Redirect
 from app.config import ensure_session_secret, settings
 from app.db import connect, run_migrations
-from app.routes import analysis, auth_routes, dashboard, export
+from app.routes import accounts, analysis, auth_routes, dashboard, export
 
 
 def configure_logging() -> None:
@@ -63,6 +63,7 @@ async def _redirect_handler(request, exc: _Redirect):
 
 
 app.include_router(auth_routes.router)
+app.include_router(accounts.router)
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
 app.include_router(export.router)
