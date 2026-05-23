@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import threading
 from datetime import UTC, datetime
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
@@ -15,6 +18,8 @@ from app.models import Post
 from app.templating import templates
 
 router = APIRouter()
+logger = logging.getLogger("ig_pulse.routes.dashboard")
+_refresh_state = {"running": False}
 
 
 def build_scope_qs(
@@ -104,12 +109,46 @@ def set_scope(
     )
 
 
+def _muted(text: str) -> str:
+    return f'<span style="color:var(--fg-muted)">{text}</span>'
+
+
+def _poll_span() -> HTMLResponse:
+    """A status span that polls /refresh/status every 2s until the fetch finishes."""
+    return HTMLResponse(
+        '<span hx-get="/refresh/status" hx-trigger="every 2s" hx-swap="outerHTML" '
+        'style="color:var(--fg-muted)">⏳ Memuat komentar terbaru dari Instagram…</span>'
+    )
+
+
+def _do_refresh() -> None:
+    """Background: re-fetch posts/comments, then run sentiment on the new ones."""
+    try:
+        from app.analysis.sentiment import analyze_comments
+        from app.fetch import fetch_all
+
+        asyncio.run(fetch_all())
+        analyze_comments()  # idempotent: only the newly-fetched comments
+    except Exception:
+        logger.exception("background refresh failed")
+    finally:
+        _refresh_state["running"] = False
+
+
 @router.post("/refresh", response_class=HTMLResponse)
 def refresh():
-    # MVP: a real fetch is slow (many API calls) and blocking — keep it a manual CLI
-    # step rather than tying up the request (plan: auto-refresh is Phase 2).
-    return HTMLResponse(
-        '<span id="refresh-status" style="color: var(--pico-muted-color);">'
-        "Untuk memperbarui data, jalankan <code>uv run python -m app.cli fetch</code> "
-        "lalu muat ulang halaman.</span>"
-    )
+    if not settings.ig_access_token:
+        return HTMLResponse(_muted("Token Instagram belum diatur — jalankan setup dulu."))
+    if not _refresh_state["running"]:
+        _refresh_state["running"] = True
+        threading.Thread(target=_do_refresh, daemon=True).start()
+    return _poll_span()
+
+
+@router.get("/refresh/status", response_class=HTMLResponse)
+def refresh_status():
+    if _refresh_state["running"]:
+        return _poll_span()
+    resp = HTMLResponse(_muted("✓ Selesai — memuat ulang…"))
+    resp.headers["HX-Refresh"] = "true"  # full reload to show fresh data
+    return resp
