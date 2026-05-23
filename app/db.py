@@ -16,11 +16,18 @@ _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
 def connect(db_path: Path | None = None) -> sqlite3.Connection:
-    """Open a sqlite3 connection with row_factory and foreign keys enabled."""
+    """Open a sqlite3 connection with row_factory and foreign keys enabled.
+
+    WAL mode + a busy timeout let the dashboard's constant read-polling coexist
+    with a background fetch/analysis write — without WAL the writer hits
+    "database is locked" against concurrent readers (deployed multi-user case).
+    """
     path = db_path if db_path is not None else settings.database_path
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 

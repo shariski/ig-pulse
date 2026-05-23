@@ -26,6 +26,15 @@ def conn(db_path: Path) -> sqlite3.Connection:
     return c
 
 
+def test_connect_enables_wal_and_busy_timeout(db_path: Path) -> None:
+    # WAL lets the dashboard's read-polling coexist with a background analysis
+    # write instead of raising "database is locked".
+    c = connect(db_path)
+    assert c.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
+    assert c.execute("PRAGMA busy_timeout").fetchone()[0] == 5000
+    c.close()
+
+
 def _make_post(id: str = "p1", **kwargs) -> Post:
     defaults = dict(
         id=id,
