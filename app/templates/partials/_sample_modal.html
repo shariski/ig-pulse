@@ -1,0 +1,46 @@
+{# Sentiment sanity-check modal (Phase 7 / B4): random real comments from a bucket,
+   so the user (and audience) can verify the classifier instead of trusting it blindly.
+   Context: bucket, comments (list[Comment]), posts ({id: Post}), total, scope_qs. #}
+{% set labels = {"positive": "Positif", "neutral": "Netral", "negative": "Negatif", "unanalyzed": "Belum dianalisis"} %}
+<article style="border:1px solid var(--pico-muted-border-color);margin-top:1rem;">
+  <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+    <strong>Contoh komentar — “{{ labels.get(bucket, bucket) }}” ({{ total }} total)</strong>
+    <button class="secondary outline" style="margin:0;padding:0.2rem 0.6rem;"
+            onclick="this.closest('article').remove()" type="button">
+      ✕ Tutup
+    </button>
+  </header>
+
+  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+    {% for key, label in labels.items() %}
+      <button type="button"
+              hx-get="/analysis/sentiment/sample?bucket={{ key }}&n=5&{{ scope_qs }}"
+              hx-target="#sentiment-sample-modal" hx-swap="innerHTML"
+              class="{% if key != bucket %}outline{% endif %}"
+              style="margin:0;padding:0.2rem 0.6rem;font-size:0.8rem;">
+        {{ label }}
+      </button>
+    {% endfor %}
+  </div>
+
+  {% if comments %}
+    {% for c in comments %}
+      {% set p = posts.get(c.post_id) %}
+      <blockquote style="margin:0 0 0.75rem;border-left:3px solid var(--pico-muted-border-color);padding-left:0.75rem;">
+        <div>{{ c.text }}</div>
+        <small style="color:var(--pico-muted-color);">
+          — @{{ c.author_handle or "anonim" }}{% if p %} ·
+            <a href="{{ p.permalink }}" target="_blank" rel="noopener">lihat post ↗</a>{% endif %}
+        </small>
+      </blockquote>
+    {% endfor %}
+    {% if total > comments|length %}
+      <button type="button" hx-get="/analysis/sentiment/sample?bucket={{ bucket }}&n=5&{{ scope_qs }}"
+              hx-target="#sentiment-sample-modal" hx-swap="innerHTML">
+        🔁 5 komentar acak lainnya
+      </button>
+    {% endif %}
+  {% else %}
+    <p style="color:var(--pico-muted-color);">Tidak ada komentar pada bucket ini untuk cakupan terpilih.</p>
+  {% endif %}
+</article>

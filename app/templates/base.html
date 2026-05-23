@@ -15,12 +15,13 @@
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
 
   <!--
-    Plotly is NOT loaded globally here.
-    Each chart fragment injects its own Plotly bundle via:
-      fig.to_html(include_plotlyjs='cdn', full_html=False)
-    This keeps the initial page load light and lets each analysis
-    section load independently.
+    Plotly loaded ONCE globally (version matches plotly.py 6.7 -> plotly.js 3.5.0).
+    Fragments embed charts with include_plotlyjs=False. We load it globally rather
+    than per-fragment because an HTMX innerHTML swap runs the inline Plotly.newPlot
+    script before an async per-fragment CDN <script> finishes — a "Plotly is not
+    defined" race. Global load (not async) is already present when fragments swap in.
   -->
+  <script src="https://cdn.plot.ly/plotly-3.5.0.min.js" charset="utf-8"></script>
 
   <style>
     /* Minimal overrides — keep it skeleton-lean */

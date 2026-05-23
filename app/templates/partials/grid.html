@@ -1,0 +1,83 @@
+{# The 4 analysis cards. Rendered inside #analysis-grid on page load and re-rendered
+   by POST /scope. `scope_qs` (e.g. "scope_type=all") is threaded into every hx-get
+   so each fragment, the sentiment sample, and the export modal honor the chosen scope.
+   Each card auto-loads its fragment via hx-trigger="load". #}
+
+{# ---- Card 1: Sentiment ---- #}
+<article id="card-sentiment" aria-label="Analisis sentimen komentar">
+  <header><strong>Sentimen Komentar</strong></header>
+  <div id="sentiment-chart"
+       hx-get="/analysis/sentiment?{{ scope_qs }}" hx-trigger="load" hx-swap="innerHTML"
+       hx-indicator="#sentiment-loading">
+    <div id="sentiment-loading" class="htmx-indicator" style="text-align:center;padding:2rem;color:var(--pico-muted-color);">
+      Sedang menghitung sentimen…
+    </div>
+  </div>
+  <footer>
+    <small style="color:var(--pico-muted-color);">
+      Diklasifikasikan otomatis oleh model <code>cardiffnlp/twitter-xlm-roberta-base-sentiment</code>.
+      Klasifikasi otomatis, bukan kebenaran mutlak.
+    </small>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem;">
+      <button hx-get="/analysis/sentiment/sample?bucket=positive&n=5&{{ scope_qs }}"
+              hx-target="#sentiment-sample-modal" hx-swap="innerHTML" type="button">
+        🔍 Tampilkan 5 Komentar Acak
+      </button>
+      <button hx-get="/export/sentiment?{{ scope_qs }}" hx-target="#export-modal" hx-swap="innerHTML" type="button">
+        ⬇️ Ekspor Grafik
+      </button>
+    </div>
+    <div id="sentiment-sample-modal" aria-live="polite"></div>
+  </footer>
+</article>
+
+{# ---- Card 2: Word frequency + word cloud ---- #}
+<article id="card-wordfreq" aria-label="Frekuensi kata dan word cloud">
+  <header><strong>Frekuensi Kata &amp; Word Cloud</strong></header>
+  <div id="wordfreq-chart"
+       hx-get="/analysis/wordfreq?{{ scope_qs }}" hx-trigger="load" hx-swap="innerHTML"
+       hx-indicator="#wordfreq-loading">
+    <div id="wordfreq-loading" class="htmx-indicator" style="text-align:center;padding:2rem;color:var(--pico-muted-color);">
+      Sedang menghitung frekuensi kata…
+    </div>
+  </div>
+  <footer>
+    <button hx-get="/export/wordfreq?{{ scope_qs }}" hx-target="#export-modal" hx-swap="innerHTML" type="button">
+      ⬇️ Ekspor Grafik
+    </button>
+  </footer>
+</article>
+
+{# ---- Card 3: Time trend ---- #}
+<article id="card-timetrend" aria-label="Tren waktu komentar">
+  <header><strong>Tren Waktu Komentar (WIB)</strong></header>
+  <div id="timetrend-chart"
+       hx-get="/analysis/timetrend?{{ scope_qs }}" hx-trigger="load" hx-swap="innerHTML"
+       hx-indicator="#timetrend-loading">
+    <div id="timetrend-loading" class="htmx-indicator" style="text-align:center;padding:2rem;color:var(--pico-muted-color);">
+      Sedang menyusun tren harian…
+    </div>
+  </div>
+  <footer>
+    <button hx-get="/export/timetrend?{{ scope_qs }}" hx-target="#export-modal" hx-swap="innerHTML" type="button">
+      ⬇️ Ekspor Grafik
+    </button>
+  </footer>
+</article>
+
+{# ---- Card 4: Dominant phrases ---- #}
+<article id="card-phrases" aria-label="Frasa dominan dalam komentar">
+  <header><strong>Frasa Dominan</strong></header>
+  <div id="phrases-chart"
+       hx-get="/analysis/phrases?{{ scope_qs }}" hx-trigger="load" hx-swap="innerHTML"
+       hx-indicator="#phrases-loading">
+    <div id="phrases-loading" class="htmx-indicator" style="text-align:center;padding:2rem;color:var(--pico-muted-color);">
+      Sedang mengekstrak frasa…
+    </div>
+  </div>
+  <footer>
+    <button hx-get="/export/phrases?{{ scope_qs }}" hx-target="#export-modal" hx-swap="innerHTML" type="button">
+      ⬇️ Ekspor Grafik
+    </button>
+  </footer>
+</article>

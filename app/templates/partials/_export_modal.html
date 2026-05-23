@@ -1,0 +1,21 @@
+{# Export format-picker modal (Phase 8 / B8). Each link streams a PNG download at an
+   Instagram preset. Context: name (chart id), scope_qs. #}
+{% set titles = {"sentiment": "Sentimen", "wordfreq": "Frekuensi Kata", "timetrend": "Tren Waktu", "phrases": "Frasa Dominan"} %}
+<article style="border:1px solid var(--pico-muted-border-color);margin-top:1rem;">
+  <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+    <strong>Ekspor — {{ titles.get(name, name) }}</strong>
+    <button class="secondary outline" style="margin:0;padding:0.2rem 0.6rem;"
+            onclick="this.closest('article').remove()" type="button">
+      ✕ Tutup
+    </button>
+  </header>
+  <p style="color:var(--pico-muted-color);">Pilih ukuran gambar untuk dibagikan ke Instagram:</p>
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+    <a role="button" download href="/export/{{ name }}/download?fmt=square&{{ scope_qs }}">⬇️ Persegi 1080×1080</a>
+    <a role="button" class="secondary" download href="/export/{{ name }}/download?fmt=portrait&{{ scope_qs }}">⬇️ Potret 1080×1350</a>
+    <a role="button" class="secondary" download href="/export/{{ name }}/download?fmt=story&{{ scope_qs }}">⬇️ Story 1080×1920</a>
+  </div>
+  <small style="color:var(--pico-muted-color);display:block;margin-top:0.5rem;">
+    Watermark handle didukung di <code>app/render/export.py</code>; opsi di UI menyusul (Phase 9).
+  </small>
+</article>
