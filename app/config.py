@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     exports_dir: Path = Path("./exports")
     fixtures_dir: Path = Path("./tests/fixtures")
 
+    # --- Multi-account registry ---
+    registry_path: Path = Path("./registry.db")
+    data_dir: Path = Path("./data")
+    session_secret: str | None = None      # auto-generated into .env on first run
+    register_code: str | None = None       # if set, registration requires this code
+
     # --- Sentiment model (chosen empirically in Phase 4 — see docs/decisions.md) ---
     # cardiffnlp won the comparison: reads real positives/emoji/compliments that
     # tabularisai mislabeled negative (R1). Revision pinned for reproducibility (R8).
@@ -77,3 +83,17 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def ensure_session_secret() -> str:
+    """Return a stable session secret, generating + persisting one to .env if absent."""
+    import secrets
+
+    from dotenv import set_key
+
+    if settings.session_secret:
+        return settings.session_secret
+    secret = secrets.token_urlsafe(48)
+    set_key(".env", "SESSION_SECRET", secret)
+    settings.session_secret = secret
+    return secret

@@ -8,6 +8,7 @@ requires-python = ">=3.11,<3.14"
 # Core deps: web stack + light analysis (text + Plotly). Kept installable
 # without the heavy ML wheels so foundation work syncs fast.
 dependencies = [
+    "argon2-cffi",
     "fastapi",
     "uvicorn[standard]",
     "httpx",

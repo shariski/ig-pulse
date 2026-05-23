@@ -5,6 +5,9 @@ ig_pulse.db
 *.db-journal
 logs/
 exports/
+registry.db
+registry.db-journal
+data/
 
 # Raw API fixtures contain real audience comments/usernames (R7) — don't commit.
 # (Sanitized sample fixtures, if any, can be force-added explicitly.)
