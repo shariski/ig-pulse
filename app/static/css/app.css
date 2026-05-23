@@ -116,6 +116,10 @@ a { color: inherit; }
   content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--bg);
 }
 .scope-extra { margin: 8px 0 0 26px; display: flex; flex-direction: column; gap: 8px; }
+/* The HTML `hidden` attribute must beat the display:flex above (without this it
+   loses on source order at equal specificity), so each field set only shows for
+   its selected radio. */
+.scope-extra[hidden] { display: none; }
 .scope-extra select, .scope-extra input {
   width: 100%; padding: 8px 10px; background: var(--bg-elev); color: var(--fg);
   border: 1px solid var(--border); border-radius: var(--radius-sm);

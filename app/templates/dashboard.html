@@ -20,27 +20,28 @@
           <input type="radio" name="scope_type" value="all" hidden checked />
           <span class="check"></span><span>Semua post</span>
         </label>
+
         <label class="scope-option">
           <input type="radio" name="scope_type" value="post" hidden />
           <span class="check"></span><span>Satu post</span>
         </label>
+        <div class="scope-extra" id="extra-post" hidden>
+          <select name="post_id">
+            <option value="">— pilih post —</option>
+            {% for p in posts %}
+              <option value="{{ p.id }}">{{ p.timestamp[:10] }} · {{ (p.caption or "(tanpa caption)")[:40] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
         <label class="scope-option">
           <input type="radio" name="scope_type" value="period" hidden />
           <span class="check"></span><span>Rentang waktu</span>
         </label>
-      </div>
-
-      <div class="scope-extra" id="extra-post" hidden>
-        <select name="post_id">
-          <option value="">— pilih post —</option>
-          {% for p in posts %}
-            <option value="{{ p.id }}">{{ p.timestamp[:10] }} · {{ (p.caption or "(tanpa caption)")[:40] }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="scope-extra" id="extra-period" hidden>
-        <input type="date" name="date_from" />
-        <input type="date" name="date_to" />
+        <div class="scope-extra" id="extra-period" hidden>
+          <input type="date" name="date_from" />
+          <input type="date" name="date_to" />
+        </div>
       </div>
 
       <button class="cta" type="submit" style="margin-top:20px;">Jalankan Analisis →</button>

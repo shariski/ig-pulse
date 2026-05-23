@@ -57,16 +57,16 @@ def scope_data(db_path: str, scope_type: str, scope_value: str | None):
 
 
 def _id_date(iso_date: str) -> str:
-    """'2025-05-17' -> '17 Mei'."""
+    """'2025-05-17' -> '17 Mei 2025'."""
     try:
         d = datetime.strptime(iso_date, "%Y-%m-%d")
-        return f"{d.day} {_ID_MONTHS[d.month]}"
+        return f"{d.day} {_ID_MONTHS[d.month]} {d.year}"
     except ValueError:
         return iso_date
 
 
 def _id_datetime(ts: str) -> str:
-    """IG timestamp -> '17 Mei · 14:23' in WIB."""
+    """IG timestamp -> '17 Mei 2025 · 14:23' in WIB."""
     try:
         dt = datetime.fromisoformat(ts)
     except ValueError:
@@ -77,7 +77,7 @@ def _id_datetime(ts: str) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
     dt = dt.astimezone(ZoneInfo(settings.timezone))
-    return f"{dt.day} {_ID_MONTHS[dt.month]} · {dt:%H:%M}"
+    return f"{dt.day} {_ID_MONTHS[dt.month]} {dt.year} · {dt:%H:%M}"
 
 
 def _empty(msg: str) -> HTMLResponse:
