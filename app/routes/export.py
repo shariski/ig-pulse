@@ -38,23 +38,28 @@ def export_modal(
 
 @router.get("/export/{name}/download")
 def export_download(
-    name: str, fmt: str = "square", scope_type: str = "all", scope_value: str | None = None
+    name: str,
+    fmt: str = "square",
+    watermark: str | None = None,
+    scope_type: str = "all",
+    scope_value: str | None = None,
 ):
     if name not in CHART_NAMES:
         return Response("unknown chart", status_code=404)
+    wm = watermark or None  # treat empty string as "no watermark"
     comments, analyses = scope_data(scope_type, scope_value)
     try:
         if name == "sentiment":
             dist = Counter(analyses.get(c.id, "unanalyzed") for c in comments)
-            png = export.figure_to_png(charts.sentiment_pie(dict(dist)), fmt)
+            png = export.figure_to_png(charts.sentiment_pie(dict(dist)), fmt, wm)
         elif name == "timetrend":
             fig = charts.timetrend_line(timetrend.daily_trend(comments, analyses))
-            png = export.figure_to_png(fig, fmt)
+            png = export.figure_to_png(fig, fmt, wm)
         elif name == "phrases":
-            png = export.figure_to_png(charts.phrase_bar(phrases.top_phrases(comments)), fmt)
+            png = export.figure_to_png(charts.phrase_bar(phrases.top_phrases(comments)), fmt, wm)
         else:  # wordfreq
             img = wc_render.render_wordcloud(wordfreq.word_frequencies(comments, 100))
-            png = export.image_to_png(img, fmt)
+            png = export.image_to_png(img, fmt, wm)
     except ValueError as e:
         return Response(str(e), status_code=400)
     return Response(

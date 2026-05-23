@@ -25,3 +25,7 @@ venv/
 
 # OS / editor
 .DS_Store
+
+# Dev artifacts
+.playwright-mcp/
+ig-pulse-dashboard.png

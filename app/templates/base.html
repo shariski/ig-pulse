@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}IG Pulse{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
 
   <!-- Pico.css — classless, minimal. No build step required. -->
   <link
@@ -78,7 +79,7 @@
        14–30 days → yellow warning banner
        ≥ 30 days  → banner is hidden entirely
        ============================================================ -->
-  {% if token_days_left is defined %}
+  {% if token_days_left is not none %}
     {% if token_days_left < 14 %}
       <div class="token-banner danger" role="alert">
         ⚠️ Token akses Instagram kamu akan kedaluwarsa dalam

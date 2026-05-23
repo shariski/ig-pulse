@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
@@ -38,6 +38,19 @@ def _fmt_wib(iso: str | None) -> str | None:
         return iso
 
 
+def _days_left(expires_at: str | None) -> int | None:
+    """Whole days until the access token expires, or None if unknown (R4 banner)."""
+    if not expires_at:
+        return None
+    try:
+        exp = datetime.fromisoformat(expires_at)
+    except ValueError:
+        return None
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=UTC)
+    return (exp - datetime.now(UTC)).days
+
+
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request):
     conn = connect()
@@ -51,6 +64,8 @@ def index(request: Request):
             "posts": posts,
             "scope_qs": build_scope_qs("all"),
             "last_refreshed": _fmt_wib(last),
+            "token_days_left": _days_left(settings.ig_token_expires_at),
+            "sentiment_model": settings.sentiment_model,
         },
     )
 
@@ -64,7 +79,9 @@ def set_scope(
     date_to: str = Form(""),
 ):
     qs = build_scope_qs(scope_type, post_id, date_from, date_to)
-    return templates.TemplateResponse(request, "partials/grid.html", {"scope_qs": qs})
+    return templates.TemplateResponse(
+        request, "partials/grid.html", {"scope_qs": qs, "sentiment_model": settings.sentiment_model}
+    )
 
 
 @router.post("/refresh", response_class=HTMLResponse)

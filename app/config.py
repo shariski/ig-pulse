@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     fb_app_secret: str | None = None
     ig_user_id: str | None = None
     ig_access_token: str | None = None
+    ig_token_expires_at: str | None = None  # ISO-8601; written by cli setup/refresh (R4)
 
     # Graph API version to call. VERIFY/UPDATE during Phase 2 (api-integration.md).
     graph_api_version: str = "v21.0"

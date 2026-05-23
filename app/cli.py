@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -29,6 +30,13 @@ def _graph_get(path: str, params: dict) -> dict:
     resp = httpx.get(url, params=params, timeout=30)
     resp.raise_for_status()
     return resp.json()
+
+
+def _expiry_iso(expires_in: int | str | None) -> str | None:
+    """ISO-8601 timestamp `expires_in` seconds from now (UTC), or None."""
+    if not expires_in:
+        return None
+    return (datetime.now(UTC) + timedelta(seconds=int(expires_in))).isoformat()
 
 
 def cmd_setup(args: argparse.Namespace) -> None:
@@ -86,6 +94,9 @@ def cmd_setup(args: argparse.Namespace) -> None:
     set_key(str(ENV_PATH), "FB_APP_SECRET", str(app_secret))
     set_key(str(ENV_PATH), "IG_USER_ID", ig_user_id)
     set_key(str(ENV_PATH), "IG_ACCESS_TOKEN", long_token)
+    expires_at = _expiry_iso(exchange.get("expires_in"))
+    if expires_at:
+        set_key(str(ENV_PATH), "IG_TOKEN_EXPIRES_AT", expires_at)
     print(f"Wrote IG_USER_ID + IG_ACCESS_TOKEN to {ENV_PATH}. Setup complete.")
 
 
@@ -102,6 +113,9 @@ def cmd_refresh_token(args: argparse.Namespace) -> None:
     new_token = data["access_token"]
     expires_in = data.get("expires_in")
     set_key(str(ENV_PATH), "IG_ACCESS_TOKEN", new_token)
+    expires_at = _expiry_iso(expires_in)
+    if expires_at:
+        set_key(str(ENV_PATH), "IG_TOKEN_EXPIRES_AT", expires_at)
     days = round(expires_in / 86400) if expires_in else "?"
     print(f"Token refreshed. New expiry ≈ {days} days from now. Updated {ENV_PATH}.")
 

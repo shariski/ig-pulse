@@ -1,5 +1,6 @@
 {# Export format-picker modal (Phase 8 / B8). Each link streams a PNG download at an
-   Instagram preset. Context: name (chart id), scope_qs. #}
+   Instagram preset. Optional watermark handle is appended to the download URLs.
+   Context: name (chart id), scope_qs. #}
 {% set titles = {"sentiment": "Sentimen", "wordfreq": "Frekuensi Kata", "timetrend": "Tren Waktu", "phrases": "Frasa Dominan"} %}
 <article style="border:1px solid var(--pico-muted-border-color);margin-top:1rem;">
   <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
@@ -9,13 +10,35 @@
       ✕ Tutup
     </button>
   </header>
-  <p style="color:var(--pico-muted-color);">Pilih ukuran gambar untuk dibagikan ke Instagram:</p>
+
+  <label style="font-size:0.9rem;">
+    Watermark handle (opsional)
+    <input type="text" id="wm-input" placeholder="@handle_kamu" autocomplete="off" />
+  </label>
+
+  <p style="color:var(--pico-muted-color);margin:0.5rem 0;">Pilih ukuran gambar:</p>
   <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-    <a role="button" download href="/export/{{ name }}/download?fmt=square&{{ scope_qs }}">⬇️ Persegi 1080×1080</a>
-    <a role="button" class="secondary" download href="/export/{{ name }}/download?fmt=portrait&{{ scope_qs }}">⬇️ Potret 1080×1350</a>
-    <a role="button" class="secondary" download href="/export/{{ name }}/download?fmt=story&{{ scope_qs }}">⬇️ Story 1080×1920</a>
+    <a role="button" class="wm-link" download
+       data-base="/export/{{ name }}/download?fmt=square&{{ scope_qs }}"
+       href="/export/{{ name }}/download?fmt=square&{{ scope_qs }}">⬇️ Persegi 1080×1080</a>
+    <a role="button" class="wm-link secondary" download
+       data-base="/export/{{ name }}/download?fmt=portrait&{{ scope_qs }}"
+       href="/export/{{ name }}/download?fmt=portrait&{{ scope_qs }}">⬇️ Potret 1080×1350</a>
+    <a role="button" class="wm-link secondary" download
+       data-base="/export/{{ name }}/download?fmt=story&{{ scope_qs }}"
+       href="/export/{{ name }}/download?fmt=story&{{ scope_qs }}">⬇️ Story 1080×1920</a>
   </div>
-  <small style="color:var(--pico-muted-color);display:block;margin-top:0.5rem;">
-    Watermark handle didukung di <code>app/render/export.py</code>; opsi di UI menyusul (Phase 9).
-  </small>
+
+  <script>
+    (function () {
+      var inp = document.getElementById('wm-input');
+      if (!inp) return;
+      inp.addEventListener('input', function () {
+        var v = inp.value.trim();
+        document.querySelectorAll('.wm-link').forEach(function (a) {
+          a.href = a.dataset.base + (v ? '&watermark=' + encodeURIComponent(v) : '');
+        });
+      });
+    })();
+  </script>
 </article>
