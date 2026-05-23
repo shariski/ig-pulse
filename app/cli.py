@@ -122,6 +122,38 @@ def cmd_refresh_token(args: argparse.Namespace) -> None:
     print(f"Token refreshed. New expiry ≈ {days} days from now. Updated {ENV_PATH}.")
 
 
+def cmd_migrate(args: argparse.Namespace) -> None:
+    import getpass
+    import shutil
+
+    from app import auth, registry
+
+    rconn = registry.connect()
+    registry.run_migrations(rconn)
+    if rconn.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
+        rconn.close()
+        sys.exit("Registry already has users — migration already done.")
+    if not settings.ig_access_token or not settings.ig_user_id:
+        rconn.close()
+        sys.exit("No single-account .env data to migrate (need IG_ACCESS_TOKEN + IG_USER_ID).")
+
+    username = args.username or input("New login username: ")
+    password = args.password or getpass.getpass("New login password: ")
+    uid = registry.create_user(rconn, username, auth.hash_password(password))
+    aid = registry.create_account(rconn, uid, settings.ig_user_id, settings.ig_username,
+                                  settings.ig_access_token, settings.ig_token_expires_at)
+    acct = registry.get_account(rconn, aid)
+    rconn.close()
+
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    src = settings.database_path
+    dst = acct["db_path"]
+    if src.exists():
+        shutil.copy2(src, dst)
+        print(f"Adopted {src} -> {dst}")
+    print(f"Created user '{username}' + account @{settings.ig_username} (id={aid}). Done.")
+
+
 def cmd_fetch(args: argparse.Namespace) -> None:
     if args.scope != "all":
         raise SystemExit(f"scope={args.scope!r} not implemented yet; use --scope all.")
@@ -154,6 +186,11 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("--scope", choices=["post", "period", "all"], default="all")
     f.add_argument("--value", help="post id, or ISO range YYYY-MM-DD/YYYY-MM-DD")
     f.set_defaults(func=cmd_fetch)
+
+    m = sub.add_parser("migrate", help="One-time: import the .env single account into the registry")
+    m.add_argument("--username")
+    m.add_argument("--password")
+    m.set_defaults(func=cmd_migrate)
     return parser
 
 
