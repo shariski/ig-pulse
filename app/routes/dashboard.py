@@ -16,6 +16,7 @@ from app import auth, registry
 from app.config import settings
 from app.db import connect
 from app.models import Post
+from app.routes.analysis import scope_data
 from app.templating import templates
 
 router = APIRouter()
@@ -24,14 +25,32 @@ _refresh_state = {"running": False}
 
 
 def build_scope_qs(
-    scope_type: str, post_id: str = "", date_from: str = "", date_to: str = ""
+    scope_type: str,
+    post_id: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    exclude_self: bool = False,
 ) -> str:
     """Build the query string passed to each analysis fragment's hx-get URL."""
+    params: dict = {"scope_type": "all"}
     if scope_type == "post" and post_id:
-        return urlencode({"scope_type": "post", "scope_value": post_id})
-    if scope_type == "period" and date_from and date_to:
-        return urlencode({"scope_type": "period", "scope_value": f"{date_from}/{date_to}"})
-    return urlencode({"scope_type": "all"})
+        params = {"scope_type": "post", "scope_value": post_id}
+    elif scope_type == "period" and date_from and date_to:
+        params = {"scope_type": "period", "scope_value": f"{date_from}/{date_to}"}
+    if exclude_self:
+        params["exclude_self"] = "1"
+    return urlencode(params)
+
+
+def _scope_summary(comments: list) -> dict:
+    """Hero headline numbers for whatever set of comments is in view (so the
+    scope + exclude-self toggle are reflected, not just the global totals)."""
+    times = [c.timestamp for c in comments]
+    return {
+        "total_comments": f"{len(comments):,}",
+        "total_posts": len({c.post_id for c in comments}),
+        "time_range": _time_range(min(times), max(times)) if times else "—",
+    }
 
 
 def _fmt_wib(iso: str | None) -> str | None:
@@ -75,10 +94,8 @@ def index(request: Request, account=auth.current_account):
     conn = connect(account["db_path"])
     posts = [Post.from_row(r) for r in conn.execute("SELECT * FROM posts ORDER BY timestamp DESC")]
     last = conn.execute("SELECT MAX(ended_at) FROM fetch_log").fetchone()[0]
-    mn, mx, total = conn.execute(
-        "SELECT MIN(timestamp), MAX(timestamp), COUNT(*) FROM comments"
-    ).fetchone()
     conn.close()
+    comments, _ = scope_data(account["db_path"], "all", None)
     rconn = registry.connect()
     accounts = registry.list_accounts(rconn, account["user_id"])
     rconn.close()
@@ -92,9 +109,7 @@ def index(request: Request, account=auth.current_account):
             "token_days_left": _days_left(account["token_expires_at"]),
             "sentiment_model": settings.sentiment_model,
             "ig_username": account["username"],
-            "total_comments": f"{total:,}",
-            "total_posts": len(posts),
-            "time_range": _time_range(mn, mx),
+            **_scope_summary(comments),
             "accounts": accounts,
             "active_account_id": account["id"],
         },
@@ -108,11 +123,24 @@ def set_scope(
     post_id: str = Form(""),
     date_from: str = Form(""),
     date_to: str = Form(""),
+    exclude_self: bool = Form(False),
     account=auth.current_account,
 ):
-    qs = build_scope_qs(scope_type, post_id, date_from, date_to)
+    qs = build_scope_qs(scope_type, post_id, date_from, date_to, exclude_self)
+    # Same fallback as build_scope_qs, so the headline matches the cards' scope.
+    if scope_type == "post" and post_id:
+        eff_type, eff_value = "post", post_id
+    elif scope_type == "period" and date_from and date_to:
+        eff_type, eff_value = "period", f"{date_from}/{date_to}"
+    else:
+        eff_type, eff_value = "all", None
+    comments, _ = scope_data(
+        account["db_path"], eff_type, eff_value,
+        exclude_self=exclude_self, self_handle=account["username"],
+    )
     return templates.TemplateResponse(
-        request, "partials/grid.html", {"scope_qs": qs, "sentiment_model": settings.sentiment_model}
+        request, "partials/scope_response.html",
+        {"scope_qs": qs, "sentiment_model": settings.sentiment_model, **_scope_summary(comments)},
     )
 
 

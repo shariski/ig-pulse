@@ -44,6 +44,13 @@
         </div>
       </div>
 
+      <label class="scope-toggle" title="Komentar dari akunmu sendiri tidak dihitung di semua statistik">
+        <input type="checkbox" name="exclude_self" value="1"
+               hx-post="/scope" hx-include="closest form"
+               hx-target="#analysis-grid" hx-swap="innerHTML" hx-indicator="#scope-spinner" />
+        <span>Kecualikan komentar saya sendiri</span>
+      </label>
+
       <button class="cta" type="submit" style="margin-top:20px;">Jalankan Analisis →</button>
       <span id="scope-spinner" class="htmx-indicator" style="font-size:12px;color:var(--fg-muted);"> memuat…</span>
     </form>
@@ -74,11 +81,7 @@
       </div>
       <div class="hero-eyebrow">— Laporan percakapan</div>
       <h1 class="hero-title">Apa yang <em>sebenarnya</em><br />mereka katakan<br />di komentarmu.</h1>
-      <div class="hero-meta">
-        <div><strong>{{ total_comments }}</strong>komentar dianalisis</div>
-        <div><strong>{{ total_posts }}</strong>postingan</div>
-        <div><strong>{{ time_range }}</strong>rentang</div>
-      </div>
+      <div class="hero-meta" id="hero-meta">{% include "partials/_hero_meta.html" %}</div>
       <div id="refresh-status" style="font-size:12px;color:var(--fg-muted);margin-top:8px;"></div>
     </section>
 

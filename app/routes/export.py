@@ -37,11 +37,14 @@ def export_modal(
     name: str,
     scope_type: str = "all",
     scope_value: str | None = None,
+    exclude_self: bool = False,
     account=auth.current_account,
 ):
     if name not in CHART_NAMES:
         return HTMLResponse("", status_code=404)
     qs = f"scope_type={scope_type}" + (f"&scope_value={scope_value}" if scope_value else "")
+    if exclude_self:
+        qs += "&exclude_self=1"
     return templates.TemplateResponse(
         request, "partials/_export_modal.html",
         {"name": name, "title": _TITLES[name], "scope_qs": qs},
@@ -55,12 +58,16 @@ def export_download(
     watermark: str | None = None,
     scope_type: str = "all",
     scope_value: str | None = None,
+    exclude_self: bool = False,
     account=auth.current_account,
 ):
     if name not in CHART_NAMES:
         return Response("unknown chart", status_code=404)
     wm = watermark or None  # treat empty string as "no watermark"
-    comments, analyses = scope_data(account["db_path"], scope_type, scope_value)
+    comments, analyses = scope_data(
+        account["db_path"], scope_type, scope_value,
+        exclude_self=exclude_self, self_handle=account["username"],
+    )
     try:
         if name == "sentiment":
             dist = Counter(analyses.get(c.id, "unanalyzed") for c in comments)

@@ -38,15 +38,38 @@ _BUCKETS = {
 }
 
 
-def _scope_qs(scope_type: str, scope_value: str | None) -> str:
-    return f"scope_type={scope_type}" + (f"&scope_value={scope_value}" if scope_value else "")
+def _scope_qs(scope_type: str, scope_value: str | None, exclude_self: bool = False) -> str:
+    qs = f"scope_type={scope_type}" + (f"&scope_value={scope_value}" if scope_value else "")
+    return qs + ("&exclude_self=1" if exclude_self else "")
 
 
-def scope_data(db_path: str, scope_type: str, scope_value: str | None):
-    """Load comments for a scope + a {comment_id: sentiment_label} map."""
+def drop_self(comments: list, exclude_self: bool, self_handle: str | None) -> list:
+    """Optionally drop the account owner's own comments/replies (self-interactions),
+    so the creator's own activity doesn't skew the audience stats. Opt-in toggle."""
+    if not (exclude_self and self_handle):
+        return comments
+    sh = self_handle.lower()
+    return [c for c in comments if (c.author_handle or "").lower() != sh]
+
+
+def scope_data(
+    db_path: str,
+    scope_type: str,
+    scope_value: str | None,
+    *,
+    exclude_self: bool = False,
+    self_handle: str | None = None,
+):
+    """Load comments for a scope + a {comment_id: sentiment_label} map.
+
+    When ``exclude_self`` is set, the owner's own comments (author == ``self_handle``)
+    are filtered out so they don't count toward any stat.
+    """
     conn = connect(db_path)
     try:
-        comments = get_comments_in_scope(conn, scope_type, scope_value)
+        comments = drop_self(
+            get_comments_in_scope(conn, scope_type, scope_value), exclude_self, self_handle
+        )
         analyses = {
             r["comment_id"]: r["sentiment_label"]
             for r in conn.execute("SELECT comment_id, sentiment_label FROM comment_analysis")
@@ -97,10 +120,14 @@ def sentiment_fragment(
     request: Request,
     scope_type: str = "all",
     scope_value: str | None = None,
+    exclude_self: bool = False,
     account=auth.current_account,
 ):
     try:
-        comments, analyses = scope_data(account["db_path"], scope_type, scope_value)
+        comments, analyses = scope_data(
+            account["db_path"], scope_type, scope_value,
+            exclude_self=exclude_self, self_handle=account["username"],
+        )
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         total = len(comments)
@@ -116,7 +143,7 @@ def sentiment_fragment(
             "stats": stats,
             "donut_svg": svg.sentiment_donut_svg(dict(dist)),
             "classified": total - dist.get("unanalyzed", 0),
-            "scope_qs": _scope_qs(scope_type, scope_value),
+            "scope_qs": _scope_qs(scope_type, scope_value, exclude_self),
         })
     except Exception:
         logger.exception("sentiment fragment failed")
@@ -128,10 +155,14 @@ def wordfreq_fragment(
     request: Request,
     scope_type: str = "all",
     scope_value: str | None = None,
+    exclude_self: bool = False,
     account=auth.current_account,
 ):
     try:
-        comments, _ = scope_data(account["db_path"], scope_type, scope_value)
+        comments, _ = scope_data(
+            account["db_path"], scope_type, scope_value,
+            exclude_self=exclude_self, self_handle=account["username"],
+        )
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         freqs = wordfreq.word_frequencies(comments, 100)
@@ -155,10 +186,14 @@ def timetrend_fragment(
     request: Request,
     scope_type: str = "all",
     scope_value: str | None = None,
+    exclude_self: bool = False,
     account=auth.current_account,
 ):
     try:
-        comments, analyses = scope_data(account["db_path"], scope_type, scope_value)
+        comments, analyses = scope_data(
+            account["db_path"], scope_type, scope_value,
+            exclude_self=exclude_self, self_handle=account["username"],
+        )
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         rows = timetrend.daily_trend(comments, analyses)
@@ -194,10 +229,14 @@ def phrases_fragment(
     request: Request,
     scope_type: str = "all",
     scope_value: str | None = None,
+    exclude_self: bool = False,
     account=auth.current_account,
 ):
     try:
-        comments, _ = scope_data(account["db_path"], scope_type, scope_value)
+        comments, _ = scope_data(
+            account["db_path"], scope_type, scope_value,
+            exclude_self=exclude_self, self_handle=account["username"],
+        )
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         ph = phrases_mod.top_phrases(comments)
@@ -218,11 +257,15 @@ def sentiment_sample(
     n: int = 5,
     scope_type: str = "all",
     scope_value: str | None = None,
+    exclude_self: bool = False,
     account=auth.current_account,
 ):
     conn = connect(account["db_path"])
     try:
-        comments = get_comments_in_scope(conn, scope_type, scope_value)
+        comments = drop_self(
+            get_comments_in_scope(conn, scope_type, scope_value),
+            exclude_self, account["username"],
+        )
         analysis_rows = {
             r["comment_id"]: (r["sentiment_label"], r["sentiment_score"])
             for r in conn.execute(

@@ -1,0 +1,6 @@
+{# Hero headline counts. Reused by dashboard.html and swapped out-of-band by
+   POST /scope so the totals reflect the current scope + exclude-self toggle.
+   Context: total_comments, total_posts, time_range. #}
+<div><strong>{{ total_comments }}</strong>komentar dianalisis</div>
+<div><strong>{{ total_posts }}</strong>postingan</div>
+<div><strong>{{ time_range }}</strong>rentang</div>

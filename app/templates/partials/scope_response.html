@@ -1,0 +1,5 @@
+{# POST /scope response: the re-rendered grid for #analysis-grid, plus an
+   out-of-band swap that refreshes the hero headline counts so scope + the
+   exclude-self toggle are reflected there too. #}
+{% include "partials/grid.html" %}
+<div class="hero-meta" id="hero-meta" hx-swap-oob="true">{% include "partials/_hero_meta.html" %}</div>
