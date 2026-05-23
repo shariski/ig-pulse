@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}IG Pulse{% endblock %}</title>
+
+  <!-- Pico.css — classless, minimal. No build step required. -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+  />
+
+  <!-- HTMX — interactivity via server-rendered HTML fragments. No npm. -->
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+
+  <!--
+    Plotly is NOT loaded globally here.
+    Each chart fragment injects its own Plotly bundle via:
+      fig.to_html(include_plotlyjs='cdn', full_html=False)
+    This keeps the initial page load light and lets each analysis
+    section load independently.
+  -->
+
+  <style>
+    /* Minimal overrides — keep it skeleton-lean */
+    body > header {
+      padding: 1rem var(--pico-spacing);
+      border-bottom: 1px solid var(--pico-muted-border-color);
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .app-name {
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin: 0;
+    }
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.875rem;
+    }
+    /* Token-expiry banner — hidden by default; activated by Jinja conditional */
+    .token-banner {
+      padding: 0.5rem 1rem;
+      margin: 0;
+      font-size: 0.875rem;
+      text-align: center;
+    }
+    .token-banner.warning {
+      background-color: #fff3cd;
+      color: #664d03;
+      border-bottom: 1px solid #ffda6a;
+    }
+    .token-banner.danger {
+      background-color: #f8d7da;
+      color: #58151c;
+      border-bottom: 1px solid #f1aeb5;
+    }
+    main {
+      padding: var(--pico-spacing);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       TOKEN EXPIRY BANNER
+       token_days_left is injected by the route context.
+       < 14 days  → red danger banner (B4/R4 requirement)
+       14–30 days → yellow warning banner
+       ≥ 30 days  → banner is hidden entirely
+       ============================================================ -->
+  {% if token_days_left is defined %}
+    {% if token_days_left < 14 %}
+      <div class="token-banner danger" role="alert">
+        ⚠️ Token akses Instagram kamu akan kedaluwarsa dalam
+        <strong>{{ token_days_left }} hari</strong>.
+        Segera perbarui dengan menjalankan:
+        <code>python -m app.cli refresh-token</code>
+      </div>
+    {% elif token_days_left < 30 %}
+      <div class="token-banner warning" role="alert">
+        Token akses Instagram kamu akan kedaluwarsa dalam
+        <strong>{{ token_days_left }} hari</strong>.
+        Pertimbangkan untuk memperbarui token segera.
+      </div>
+    {% endif %}
+  {% endif %}
+
+  <header>
+    <div class="header-row">
+      <span class="app-name">📊 IG Pulse</span>
+
+      <div class="header-meta">
+        <!-- Last-refreshed indicator placeholder -->
+        <!-- Route injects: last_refreshed (datetime in WIB) or None -->
+        {% if last_refreshed is defined and last_refreshed %}
+          <span title="Waktu server dalam WIB (Asia/Jakarta)">
+            Terakhir diperbarui: <strong>{{ last_refreshed }}</strong>
+          </span>
+        {% else %}
+          <span>Belum pernah diperbarui</span>
+        {% endif %}
+
+        <!-- Manual refresh button placeholder -->
+        <!-- hx-post="/refresh" will trigger a background fetch for the current scope -->
+        <button
+          hx-post="/refresh"
+          hx-target="#refresh-status"
+          hx-swap="outerHTML"
+          hx-indicator="#refresh-spinner"
+          type="button"
+        >
+          🔄 Perbarui Data
+        </button>
+        <span id="refresh-status"></span>
+        <span id="refresh-spinner" class="htmx-indicator" aria-label="Memuat...">⏳</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    <small>
+      IG Pulse — dasbor analitik komentar Instagram pribadi.
+      Data hanya disimpan secara lokal.
+    </small>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Dasbor — IG Pulse{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     SCOPE SELECTOR
+     Pilih cakupan analisis: satu post, rentang waktu, atau semua.
+     Form adalah static markup — opsi nyata diisi oleh route.
+     Submitting via HTMX akan memuat ulang semua slot analisis.
+     ============================================================ -->
+<section aria-label="Pilih cakupan analisis">
+  <form
+    hx-post="/scope"
+    hx-target="#analysis-grid"
+    hx-swap="innerHTML"
+    hx-indicator="#scope-spinner"
+  >
+    <fieldset>
+      <legend>Cakupan Analisis</legend>
+
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+
+        <label style="flex: 0 0 auto;">
+          Jenis cakupan
+          <select name="scope_type" id="scope_type">
+            <!-- Options populated by route; these are placeholder stubs -->
+            <option value="post">Satu Post</option>
+            <option value="period">Rentang Waktu</option>
+            <option value="all">Semua Post</option>
+          </select>
+        </label>
+
+        <!-- Placeholder: satu post — pilih dari daftar post -->
+        <label id="field-post" style="flex: 1 1 200px;">
+          Pilih Post
+          <select name="post_id">
+            <option value="">— pilih post —</option>
+            <!-- Populated by route via hx-get on scope_type change -->
+          </select>
+        </label>
+
+        <!-- Placeholder: rentang waktu -->
+        <label id="field-date-from" style="flex: 0 0 auto; display: none;">
+          Dari
+          <input type="date" name="date_from" />
+        </label>
+        <label id="field-date-to" style="flex: 0 0 auto; display: none;">
+          Sampai
+          <input type="date" name="date_to" />
+        </label>
+
+        <button type="submit" style="flex: 0 0 auto;">
+          Mulai Analisis
+        </button>
+        <span id="scope-spinner" class="htmx-indicator" aria-label="Memuat...">⏳</span>
+
+      </div>
+    </fieldset>
+  </form>
+</section>
+
+<!-- ============================================================
+     ANALYSIS GRID
+     4 kartu analisis, dimuat secara independen via HTMX.
+     Urutan tetap: sentimen → frekuensi kata → tren waktu → frasa.
+     ============================================================ -->
+<div id="analysis-grid" style="display: grid; gap: 1.5rem; margin-top: 1.5rem;">
+
+  <!-- ──────────────────────────────────────────────────────────
+       KARTU 1: SENTIMEN
+       hx-get="/analysis/sentiment" dipanggil setelah scope dipilih.
+       ────────────────────────────────────────────────────────── -->
+  <article id="card-sentiment" aria-label="Analisis sentimen komentar">
+    <header>
+      <strong>Sentimen Komentar</strong>
+    </header>
+
+    <!-- Chart swap target — HTMX akan mengganti konten div ini -->
+    <div
+      id="sentiment-chart"
+      hx-get="/analysis/sentiment"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+      hx-indicator="#sentiment-loading"
+    >
+
+      <!-- Loading skeleton -->
+      <div id="sentiment-loading" class="htmx-indicator" aria-label="Memuat sentimen...">
+        <div style="height: 8px; background: var(--pico-muted-border-color); border-radius: 4px; margin-bottom: 0.5rem; width: 60%;"></div>
+        <div style="height: 200px; background: var(--pico-muted-border-color); border-radius: 4px; opacity: 0.5;"></div>
+        <p style="text-align: center; color: var(--pico-muted-color); margin-top: 0.5rem;">
+          Sedang menghitung sentimen…
+        </p>
+      </div>
+
+      <!-- Empty state — ditampilkan sebelum scope dipilih -->
+      <div id="sentiment-empty" style="text-align: center; padding: 2rem; color: var(--pico-muted-color);">
+        <p>📂 Pilih cakupan analisis terlebih dahulu untuk melihat distribusi sentimen komentar.</p>
+      </div>
+
+    </div>
+
+    <!-- ────────────────────────────────────────────────────────
+         DISCLAIMER SENTIMEN (B4 — wajib, tidak boleh dihapus)
+         Caption ini wajib muncul di bawah setiap grafik sentimen.
+         Model name + version diisi dari context saat render partial.
+         ──────────────────────────────────────────────────────── -->
+    <footer>
+      <small id="sentiment-disclaimer" style="color: var(--pico-muted-color);">
+        <!-- Placeholder — diisi oleh partial saat grafik dirender:
+             "Diklasifikasikan oleh <model_name> v<model_version>.
+              Klasifikasi otomatis, bukan kebenaran mutlak." -->
+        Diklasifikasikan secara otomatis oleh model bahasa.
+        Klasifikasi otomatis, bukan kebenaran mutlak.
+      </small>
+
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; align-items: center;">
+
+        <!-- Sanity-check affordance: tampilkan 5 komentar acak dari bucket (B4) -->
+        <!-- hx-get dipicu setelah user memilih bucket dari grafik; bucket dikirim sebagai query param -->
+        <button
+          id="btn-sample-comments"
+          hx-get="/analysis/sentiment/sample"
+          hx-target="#sentiment-sample-modal"
+          hx-swap="innerHTML"
+          hx-vals='{"bucket": "positive", "n": 5}'
+          type="button"
+        >
+          🔍 Tampilkan 5 Komentar Acak
+        </button>
+
+        <!-- Export button (B8) -->
+        <button
+          hx-get="/export/sentiment"
+          hx-target="#export-modal"
+          hx-swap="innerHTML"
+          type="button"
+        >
+          ⬇️ Ekspor Grafik
+        </button>
+      </div>
+
+      <!-- Placeholder modal untuk contoh komentar acak -->
+      <div id="sentiment-sample-modal"></div>
+    </footer>
+  </article>
+
+
+  <!-- ──────────────────────────────────────────────────────────
+       KARTU 2: FREKUENSI KATA + WORD CLOUD
+       hx-get="/analysis/wordfreq"
+       ────────────────────────────────────────────────────────── -->
+  <article id="card-wordfreq" aria-label="Frekuensi kata dan word cloud">
+    <header>
+      <strong>Frekuensi Kata &amp; Word Cloud</strong>
+    </header>
+
+    <div
+      id="wordfreq-chart"
+      hx-get="/analysis/wordfreq"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+      hx-indicator="#wordfreq-loading"
+    >
+
+      <!-- Loading skeleton -->
+      <div id="wordfreq-loading" class="htmx-indicator" aria-label="Memuat frekuensi kata...">
+        <div style="height: 8px; background: var(--pico-muted-border-color); border-radius: 4px; margin-bottom: 0.5rem; width: 40%;"></div>
+        <div style="height: 220px; background: var(--pico-muted-border-color); border-radius: 4px; opacity: 0.5;"></div>
+        <p style="text-align: center; color: var(--pico-muted-color); margin-top: 0.5rem;">
+          Sedang menghitung frekuensi kata…
+        </p>
+      </div>
+
+      <!-- Empty state -->
+      <div id="wordfreq-empty" style="text-align: center; padding: 2rem; color: var(--pico-muted-color);">
+        <p>📂 Pilih cakupan analisis terlebih dahulu untuk melihat kata-kata yang paling sering muncul di komentar.</p>
+      </div>
+
+    </div>
+
+    <footer>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
+        <!-- Export button (B8) -->
+        <button
+          hx-get="/export/wordfreq"
+          hx-target="#export-modal"
+          hx-swap="innerHTML"
+          type="button"
+        >
+          ⬇️ Ekspor Grafik
+        </button>
+      </div>
+    </footer>
+  </article>
+
+
+  <!-- ──────────────────────────────────────────────────────────
+       KARTU 3: TREN WAKTU
+       hx-get="/analysis/timetrend"
+       ────────────────────────────────────────────────────────── -->
+  <article id="card-timetrend" aria-label="Tren waktu komentar">
+    <header>
+      <strong>Tren Waktu Komentar</strong>
+    </header>
+
+    <div
+      id="timetrend-chart"
+      hx-get="/analysis/timetrend"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+      hx-indicator="#timetrend-loading"
+    >
+
+      <!-- Loading skeleton -->
+      <div id="timetrend-loading" class="htmx-indicator" aria-label="Memuat tren waktu...">
+        <div style="height: 8px; background: var(--pico-muted-border-color); border-radius: 4px; margin-bottom: 0.5rem; width: 50%;"></div>
+        <div style="height: 200px; background: var(--pico-muted-border-color); border-radius: 4px; opacity: 0.5;"></div>
+        <p style="text-align: center; color: var(--pico-muted-color); margin-top: 0.5rem;">
+          Sedang menyusun tren harian… (waktu dalam WIB)
+        </p>
+      </div>
+
+      <!-- Empty state -->
+      <div id="timetrend-empty" style="text-align: center; padding: 2rem; color: var(--pico-muted-color);">
+        <p>📂 Pilih cakupan analisis terlebih dahulu untuk melihat bagaimana percakapan berkembang dari waktu ke waktu.</p>
+      </div>
+
+    </div>
+
+    <footer>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
+        <!-- Export button (B8) -->
+        <button
+          hx-get="/export/timetrend"
+          hx-target="#export-modal"
+          hx-swap="innerHTML"
+          type="button"
+        >
+          ⬇️ Ekspor Grafik
+        </button>
+      </div>
+    </footer>
+  </article>
+
+
+  <!-- ──────────────────────────────────────────────────────────
+       KARTU 4: FRASA DOMINAN (BIGRAM / TRIGRAM)
+       hx-get="/analysis/phrases"
+       ────────────────────────────────────────────────────────── -->
+  <article id="card-phrases" aria-label="Frasa dominan dalam komentar">
+    <header>
+      <strong>Frasa Dominan</strong>
+    </header>
+
+    <div
+      id="phrases-chart"
+      hx-get="/analysis/phrases"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+      hx-indicator="#phrases-loading"
+    >
+
+      <!-- Loading skeleton -->
+      <div id="phrases-loading" class="htmx-indicator" aria-label="Memuat frasa dominan...">
+        <div style="height: 8px; background: var(--pico-muted-border-color); border-radius: 4px; margin-bottom: 0.5rem; width: 45%;"></div>
+        <div style="height: 200px; background: var(--pico-muted-border-color); border-radius: 4px; opacity: 0.5;"></div>
+        <p style="text-align: center; color: var(--pico-muted-color); margin-top: 0.5rem;">
+          Sedang mengekstrak frasa yang paling sering muncul…
+        </p>
+      </div>
+
+      <!-- Empty state -->
+      <div id="phrases-empty" style="text-align: center; padding: 2rem; color: var(--pico-muted-color);">
+        <p>📂 Pilih cakupan analisis terlebih dahulu untuk melihat frasa (bigram/trigram) yang mendominasi percakapan di komentar.</p>
+      </div>
+
+    </div>
+
+    <footer>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
+        <!-- Export button (B8) -->
+        <button
+          hx-get="/export/phrases"
+          hx-target="#export-modal"
+          hx-swap="innerHTML"
+          type="button"
+        >
+          ⬇️ Ekspor Grafik
+        </button>
+      </div>
+    </footer>
+  </article>
+
+</div><!-- /#analysis-grid -->
+
+
+<!-- ============================================================
+     EXPORT MODAL PLACEHOLDER
+     Semua tombol Ekspor menargetkan div ini.
+     Partial server akan menyuntikkan opsi format (1080×1080,
+     1080×1350, 1080×1920) dan tombol unduh.
+     ============================================================ -->
+<div id="export-modal" aria-live="polite"></div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<!--
+  Minimal inline JS: toggle field visibility berdasarkan pilihan jenis cakupan.
+  Tidak ada bundler. Tidak ada npm. Hanya satu fungsi kecil.
+-->
+<script>
+  (function () {
+    var scopeType = document.getElementById('scope_type');
+    var fieldPost = document.getElementById('field-post');
+    var fieldFrom = document.getElementById('field-date-from');
+    var fieldTo   = document.getElementById('field-date-to');
+
+    function toggleFields() {
+      var v = scopeType ? scopeType.value : 'all';
+      if (fieldPost) fieldPost.style.display = v === 'post'   ? '' : 'none';
+      if (fieldFrom) fieldFrom.style.display = v === 'period' ? '' : 'none';
+      if (fieldTo)   fieldTo.style.display   = v === 'period' ? '' : 'none';
+    }
+
+    if (scopeType) {
+      scopeType.addEventListener('change', toggleFields);
+      toggleFields(); // set correct initial state
+    }
+  })();
+</script>
+{% endblock %}

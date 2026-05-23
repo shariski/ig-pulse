@@ -1,0 +1,105 @@
+# Custom stopwords for IG Pulse — one token per line.
+# Composed of three categories:
+#   1. Indonesian internet/chat noise common in IG comments
+#   2. Frequent standalone emoji (filtered at word-frequency / phrase layer)
+#   3. URL/mention artefacts that survive stripping (e.g. bare "http")
+#
+# Keep in sync with tokenize.py policy: entries here are lowercase,
+# matching exactly what tokenize() produces.
+
+# --- Indonesian chat noise ---
+wkwk
+wkwkwk
+wkwkwkwk
+wk
+hehe
+haha
+hahaha
+hihi
+hoho
+huhu
+kk
+kkk
+yg
+yg
+ga
+gak
+nggak
+ngga
+gk
+nih
+sih
+dong
+deh
+kok
+aja
+kak
+min
+bg
+bro
+sis
+bgt
+banget
+juga
+sama
+bisa
+udah
+udh
+sudah
+emang
+memang
+kayak
+kaya
+sm
+tp
+tapi
+trus
+terus
+lgsg
+langsung
+blm
+belum
+sdh
+gmn
+gimana
+knp
+kenapa
+krn
+karena
+dgn
+dengan
+utk
+untuk
+dr
+dari
+di
+ke
+yah
+ya
+iya
+ok
+oke
+eh
+ah
+ih
+uh
+wah
+wow
+
+# --- Frequent standalone emoji (each is its own token from tokenize()) ---
+😍
+❤
+🔥
+😂
+🙏
+👍
+✨
+😭
+🥰
+😅
+
+# --- URL / mention artefacts ---
+http
+https
+www
+com
