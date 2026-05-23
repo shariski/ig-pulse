@@ -83,19 +83,37 @@ def timetrend_area_svg(rows: list[dict], width: int = 800, height: int = 280) ->
             f'<text x="4" y="{gy - 3:.1f}" font-family="JetBrains Mono" font-size="9" '
             f'fill="currentColor" opacity="0.5" font-weight="600">{round(max_total * frac)}</text>'
         )
-    # stacked areas
-    cum = [0.0] * n
-    for key, color, op in _TREND_LAYERS:
-        new_cum = [cum[i] + rows[i].get(key, 0) for i in range(n)]
-        if sum(rows[i].get(key, 0) for i in range(n)) > 0 and n >= 2:
-            top_pts = " ".join(f"{px(i):.1f},{py(new_cum[i]):.1f}" for i in range(n))
-            bot_pts = " ".join(f"{px(i):.1f},{py(cum[i]):.1f}" for i in range(n - 1, -1, -1))
+    if n == 1:
+        # A single active day has no horizontal span for an area/line — draw a
+        # stacked bar instead so a one-post (or one-day range) scope still shows
+        # its volume + sentiment mix rather than an empty plot.
+        bar_w = min(120.0, span * 0.5)
+        bar_x = (left + right) / 2 - bar_w / 2
+        base = 0.0
+        for key, color, op in _TREND_LAYERS:
+            v = rows[0].get(key, 0)
+            if v <= 0:
+                continue
+            y_top, y_bot = py(base + v), py(base)
             parts.append(
-                f'<polygon points="{top_pts} {bot_pts}" style="fill:{color}" fill-opacity="{op}"/>'
+                f'<rect x="{bar_x:.1f}" y="{y_top:.1f}" width="{bar_w:.1f}" '
+                f'height="{y_bot - y_top:.1f}" style="fill:{color}" fill-opacity="{op}"/>'
             )
-        cum = new_cum
-    # total line
-    if n >= 2:
+            base += v
+    else:
+        # stacked areas
+        cum = [0.0] * n
+        for key, color, op in _TREND_LAYERS:
+            new_cum = [cum[i] + rows[i].get(key, 0) for i in range(n)]
+            if sum(rows[i].get(key, 0) for i in range(n)) > 0:
+                top_pts = " ".join(f"{px(i):.1f},{py(new_cum[i]):.1f}" for i in range(n))
+                bot_pts = " ".join(f"{px(i):.1f},{py(cum[i]):.1f}" for i in range(n - 1, -1, -1))
+                parts.append(
+                    f'<polygon points="{top_pts} {bot_pts}" '
+                    f'style="fill:{color}" fill-opacity="{op}"/>'
+                )
+            cum = new_cum
+        # total line
         line_pts = " ".join(f"{px(i):.1f},{py(totals[i]):.1f}" for i in range(n))
         parts.append(
             f'<polyline points="{line_pts}" fill="none" style="stroke:var(--bg-card-text)" '

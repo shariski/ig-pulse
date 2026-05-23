@@ -36,3 +36,14 @@ def test_area_has_stacked_polygons_and_total_line():
     assert s.startswith("<svg")
     assert "<polygon" in s
     assert "<polyline" in s
+
+
+def test_area_single_day_draws_stacked_bar_not_blank():
+    # One active day (single-post / one-day range): an area/line has no width, so
+    # we must fall back to a stacked bar instead of an empty plot.
+    rows = [{"date": "2021-12-14", "total": 21, "pos": 5, "neg": 6, "neu": 10, "unanalyzed": 0}]
+    s = timetrend_area_svg(rows)
+    assert s.startswith("<svg")
+    assert "<rect" in s  # the bar is drawn
+    assert s.count("<rect") == 3  # one per non-zero sentiment layer
+    assert "var(--pos)" in s and "var(--neg)" in s and "var(--neu)" in s
