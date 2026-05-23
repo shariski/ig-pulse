@@ -45,6 +45,20 @@ dev = [
     "mypy",
 ]
 
+# Force CPU-only torch on Linux (the deploy target). The default PyPI torch on
+# linux-x86_64 drags in ~5 GB of CUDA/nvidia wheels that (a) the VPS has no GPU
+# for and (b) would never fit its ~6 GB free disk. Scoped by a linux marker so
+# macOS dev keeps its normal MPS-capable torch from PyPI untouched.
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

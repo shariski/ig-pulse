@@ -1,0 +1,57 @@
+# IG Pulse — production compose. Lives on the VPS at /opt/ig-pulse/.
+#
+# Pattern mirrors /opt/kerf on this host: a prebuilt GHCR image (CI builds &
+# pushes; the VPS only pulls), no host port binding — nginx-proxy reaches the
+# container over the shared external `deploy_web` network and routes by
+# VIRTUAL_HOST. TLS at the origin is a Cloudflare Origin Certificate dropped
+# into nginx-proxy's certs volume as pulse.shariski.com.crt / .key, so
+# LETSENCRYPT_HOST is intentionally NOT set (Cloudflare is in front).
+#
+# Deploy a specific build: IMAGE_TAG=<sha> docker compose up -d
+# (CI sets IMAGE_TAG to the commit SHA; falls back to `latest` for ad-hoc use.)
+
+services:
+  app:
+    image: ghcr.io/shariski/ig-pulse:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    # Secrets (FB_APP_ID/SECRET, SESSION_SECRET, ...) — copy .env.example to .env
+    # on the VPS and fill it. NEVER committed.
+    env_file: .env
+    expose:
+      - "8000"
+    environment:
+      # nginx-proxy picks these up to build the vhost + route traffic.
+      VIRTUAL_HOST: pulse.shariski.com
+      VIRTUAL_PORT: "8000"
+      # Persistent app data layout — everything that must survive a redeploy
+      # lives under /app/data (the named volume below): the user/account
+      # registry, the per-account SQLite files, and the HuggingFace model cache.
+      REGISTRY_PATH: /app/data/registry.db
+      DATABASE_PATH: /app/data/ig_pulse.db
+      DATA_DIR: /app/data
+      HF_HOME: /app/data/hf
+    volumes:
+      - ig-pulse-data:/app/data
+    networks:
+      - web
+    healthcheck:
+      # /login renders without auth and returns 200 once the app is serving.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/login', timeout=4)"
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 40s
+
+networks:
+  # External nginx-proxy network — created by the proxy stack in
+  # /home/deploy/docker-compose.yml, NOT by this file.
+  web:
+    external: true
+    name: deploy_web
+
+volumes:
+  ig-pulse-data:

@@ -1,0 +1,40 @@
+# Build context hygiene — keep the image lean and never leak secrets or the
+# host's (arm64) virtualenv into the (amd64) container.
+
+# Virtualenvs — CRITICAL: a macOS/arm64 .venv copied over the container's
+# Linux venv would silently break every import.
+.venv/
+venv/
+
+# Secrets & local data (also gitignored)
+.env
+*.db
+*.db-journal
+data/
+logs/
+exports/
+
+# VCS / CI
+.git/
+.github/
+
+# Caches & tooling state
+__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.serena/
+.playwright-mcp/
+
+# Dev artifacts & docs not needed at runtime
+*.png
+tests/
+docs/
+scripts/
+.claude/
+
+# Real audience fixtures (R7)
+tests/fixtures/*.json
+tests/fixtures/*.txt
