@@ -9,6 +9,13 @@ FROM python:3.12-slim
 # uv (pinned-ish via the official distroless image) for fast, lockfile-exact installs.
 COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /uvx /bin/
 
+# Chrome for kaleido v1 (Plotly PNG export). kaleido no longer bundles Chromium;
+# the distro chromium package brings the binary + all its runtime libs via apt,
+# and choreographer auto-discovers /usr/bin/chromium (run headless --no-sandbox).
+# Early layer so it's cached across app changes. fonts-liberation = chart text.
+RUN apt-get update && apt-get install -y --no-install-recommends chromium fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -30,7 +37,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 #    (app/analysis/stopwords.py calls nltk.download on a cold cache otherwise).
 RUN python -c "import nltk; nltk.download('stopwords', download_dir='/usr/local/share/nltk_data')"
 
-# 3) Application source.
+# 3) Smoke-test Plotly PNG export at build time so a broken Chrome/kaleido setup
+#    fails CI instead of silently 500-ing the export downloads in production.
+RUN python -c "import plotly.graph_objects as go; go.Figure().to_image(format='png')"
+
+# 4) Application source.
 COPY app ./app
 
 EXPOSE 8000
