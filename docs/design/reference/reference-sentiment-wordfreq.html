@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>IG Pulse — B3: Lora + Plus Jakarta Sans</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500..700;1,500..700&family=Plus+Jakarta+Sans:ital,wght@0,500..800;1,500..800&family=JetBrains+Mono:wght@500..700&display=swap" rel="stylesheet">
+<style>
+:root[data-theme="dark"] {
+  --bg: #0f0e0c;
+  --bg-elev: #1a1815;
+  --bg-card: #faf7f2;
+  --bg-card-text: #1a1815;
+  --fg: #faf7f2;
+  --fg-muted: #a8a39a;
+  --fg-subtle: #6b6760;
+  --border: #2a2722;
+  --accent: #ff5b35;
+  --accent-text: #faf7f2;
+  --pos: #5cb85c;
+  --neg: #ff5b35;
+  --neu: #a8a39a;
+}
+:root[data-theme="light"] {
+  --bg: #faf7f2;
+  --bg-elev: #f0ece4;
+  --bg-card: #1a1815;
+  --bg-card-text: #faf7f2;
+  --fg: #1a1815;
+  --fg-muted: #6b6760;
+  --fg-subtle: #a8a39a;
+  --border: #e2ddd3;
+  --accent: #ff5b35;
+  --accent-text: #faf7f2;
+  --pos: #2e8b2e;
+  --neg: #d94524;
+  --neu: #6b6760;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+body { min-height: 100vh; }
+
+.app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+  border-right: 1px solid var(--border);
+  padding: 32px 28px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 48px;
+}
+.brand-mark {
+  font-family: 'Lora', serif;
+  font-weight: 900;
+  font-size: 32px;
+  letter-spacing: -0.04em;
+}
+.brand-mark .dot {
+  color: var(--accent);
+}
+.brand-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--fg-subtle);
+}
+
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--fg-subtle);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-label::before {
+  content: '';
+  width: 14px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.scope-group { margin-bottom: 36px; }
+.scope-options { display: flex; flex-direction: column; gap: 4px; }
+.scope-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 14px;
+}
+.scope-option:hover { background: var(--bg-elev); }
+.scope-option.active {
+  border-color: var(--border);
+  background: var(--bg-elev);
+}
+.scope-option .check {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--fg-muted);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scope-option.active .check {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.scope-option.active .check::after {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+.cta {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: transform 0.15s ease;
+}
+.cta:hover { transform: translateY(-1px); }
+
+.sidebar-foot {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+.sidebar-foot strong { color: var(--fg); font-weight: 600; }
+
+.theme-toggle {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  background: none;
+  border: 1px solid var(--border);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+/* MAIN */
+.main { padding: 64px 64px 80px; max-width: 1200px; }
+
+.hero {
+  margin-bottom: 64px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.hero-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--fg-muted);
+  margin-bottom: 16px;
+}
+.hero-title {
+  font-family: 'Lora', serif;
+  font-weight: 600;
+  font-size: 72px;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  margin-bottom: 24px;
+}
+.hero-title em {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--accent);
+}
+.hero-meta {
+  display: flex;
+  gap: 48px;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.hero-meta strong {
+  display: block;
+  color: var(--fg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin-bottom: 2px;
+}
+.hero-refresh {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.refresh-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* CARDS */
+.card {
+  background: var(--bg-card);
+  color: var(--bg-card-text);
+  padding: 48px;
+  margin-bottom: 32px;
+  position: relative;
+}
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+.card-num {
+  font-family: 'Lora', serif;
+  font-size: 14px;
+  font-style: italic;
+  opacity: 0.4;
+}
+.card-title {
+  font-family: 'Lora', serif;
+  font-weight: 600;
+  font-size: 40px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.card-title em {
+  font-style: italic;
+  font-weight: 600;
+}
+.card-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.5;
+}
+
+/* SENTIMENT CARD */
+.sentiment-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.sentiment-stats { display: flex; flex-direction: column; gap: 20px; }
+.stat-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: baseline;
+  padding-bottom: 16px;
+  border-bottom: 1px solid currentColor;
+  border-color: rgba(0,0,0,0.08);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.stat-row:hover { opacity: 0.7; }
+.stat-num {
+  font-family: 'Lora', serif;
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+.stat-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+}
+.stat-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  opacity: 0.5;
+}
+.stat-row.positive .stat-num { color: var(--pos); }
+.stat-row.negative .stat-num { color: var(--neg); }
+.stat-row.neutral .stat-num { color: var(--neu); }
+
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.donut-center {
+  position: absolute;
+  text-align: center;
+}
+.donut-center .num {
+  font-family: 'Lora', serif;
+  font-size: 48px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.donut-center .label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.5;
+}
+
+.card-footer {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  opacity: 0.6;
+}
+.card-footer code {
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0,0,0,0.05);
+  padding: 2px 6px;
+  font-size: 11px;
+}
+.card-actions { display: flex; gap: 12px; }
+.card-action {
+  background: none;
+  border: 1px solid currentColor;
+  border-color: rgba(0,0,0,0.2);
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  transition: all 0.15s;
+}
+.card-action:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
+
+/* WORD CLOUD CARD */
+.cloud-body {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 48px;
+}
+.cloud-words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 16px;
+  line-height: 1;
+}
+.cloud-word {
+  font-family: 'Lora', serif;
+  letter-spacing: -0.03em;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+.cloud-word:hover { transform: scale(1.05); }
+.cloud-word.s1 { font-size: 84px; font-weight: 600; }
+.cloud-word.s2 { font-size: 56px; font-weight: 600; font-style: italic; color: var(--accent); }
+.cloud-word.s3 { font-size: 40px; font-weight: 500; }
+.cloud-word.s4 { font-size: 28px; font-weight: 600; }
+.cloud-word.s5 { font-size: 20px; font-weight: 600; opacity: 0.6; }
+
+.top-list {
+  border-left: 1px solid rgba(0,0,0,0.08);
+  padding-left: 32px;
+}
+.top-list-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.5;
+  margin-bottom: 20px;
+}
+.top-item {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  font-size: 14px;
+}
+.top-item .rank {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  opacity: 0.4;
+}
+.top-item .word {
+  font-family: 'Lora', serif;
+  font-weight: 500;
+}
+.top-item .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  opacity: 0.5;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀</button>
+
+    <div class="brand">
+      <div>
+        <div class="brand-mark">Pulse<span class="dot">.</span></div>
+        <div class="brand-sub">IG Comment Analytics</div>
+      </div>
+    </div>
+
+    <div class="scope-group">
+      <div class="section-label">Scope</div>
+      <div class="scope-options">
+        <div class="scope-option active">
+          <div class="check"></div>
+          <span>All posts</span>
+        </div>
+        <div class="scope-option">
+          <div class="check"></div>
+          <span>Single post</span>
+        </div>
+        <div class="scope-option">
+          <div class="check"></div>
+          <span>Time period</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="cta">Run Analysis →</button>
+
+    <div class="sidebar-foot">
+      <strong>@yourhandle</strong><br>
+      Token valid · 47 days left<br>
+      <span style="opacity:0.6">Last refreshed 2 min ago</span>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <section class="hero">
+      <div class="hero-refresh">
+        <span>Last refreshed 2 min ago</span>
+        <button class="refresh-btn">↻ Refresh</button>
+      </div>
+      <div class="hero-eyebrow">— Conversation report</div>
+      <h1 class="hero-title">
+        What people<br>
+        <em>actually said</em><br>
+        in your comments.
+      </h1>
+      <div class="hero-meta">
+        <div><strong>2,847</strong>comments analyzed</div>
+        <div><strong>43</strong>posts in scope</div>
+        <div><strong>30d</strong>time range</div>
+      </div>
+    </section>
+
+    <!-- SENTIMENT CARD -->
+    <article class="card">
+      <header class="card-header">
+        <div>
+          <div class="card-num">01 / 04</div>
+          <h2 class="card-title">Sentiment <em>breakdown</em></h2>
+          <div class="card-sub">As classified by the model</div>
+        </div>
+      </header>
+
+      <div class="sentiment-body">
+        <div class="sentiment-stats">
+          <div class="stat-row positive">
+            <div class="stat-num">30%</div>
+            <div class="stat-label">Positive</div>
+            <div class="stat-count">860 comments →</div>
+          </div>
+          <div class="stat-row neutral">
+            <div class="stat-num">40%</div>
+            <div class="stat-label">Neutral</div>
+            <div class="stat-count">1,135 comments →</div>
+          </div>
+          <div class="stat-row negative">
+            <div class="stat-num">29%</div>
+            <div class="stat-label">Negative</div>
+            <div class="stat-count">832 comments →</div>
+          </div>
+        </div>
+        <div class="donut-wrap">
+          <svg width="280" height="280" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#a8a39a" stroke-width="14" stroke-dasharray="100.3 251.3" transform="rotate(-90 50 50)"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#5cb85c" stroke-width="14" stroke-dasharray="75.4 251.3" stroke-dashoffset="-100.3" transform="rotate(-90 50 50)"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#ff5b35" stroke-width="14" stroke-dasharray="72.9 251.3" stroke-dashoffset="-175.7" transform="rotate(-90 50 50)"/>
+          </svg>
+          <div class="donut-center">
+            <div class="num">2,827</div>
+            <div class="label">classified</div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="card-footer">
+        <div>Classified by <code>cardiffnlp/twitter-xlm-roberta-base-sentiment</code> · not absolute truth</div>
+        <div class="card-actions">
+          <button class="card-action">⤓ Export PNG</button>
+          <button class="card-action">5 random samples</button>
+        </div>
+      </footer>
+    </article>
+
+    <!-- WORD CLOUD CARD -->
+    <article class="card">
+      <header class="card-header">
+        <div>
+          <div class="card-num">02 / 04</div>
+          <h2 class="card-title">Word <em>frequency</em></h2>
+          <div class="card-sub">After removing stopwords and noise</div>
+        </div>
+      </header>
+
+      <div class="cloud-body">
+        <div class="cloud-words">
+          <span class="cloud-word s1">keren</span>
+          <span class="cloud-word s3">mantap</span>
+          <span class="cloud-word s2">bagus</span>
+          <span class="cloud-word s4">setuju</span>
+          <span class="cloud-word s3">kak</span>
+          <span class="cloud-word s5">btw</span>
+          <span class="cloud-word s2">suka</span>
+          <span class="cloud-word s4">terimakasih</span>
+          <span class="cloud-word s5">aku</span>
+          <span class="cloud-word s3">benar</span>
+          <span class="cloud-word s4">gimana</span>
+          <span class="cloud-word s5">kalau</span>
+          <span class="cloud-word s4">indonesia</span>
+          <span class="cloud-word s5">banget</span>
+        </div>
+
+        <div class="top-list">
+          <div class="top-list-title">Top 10</div>
+          <div class="top-item"><span class="rank">01</span><span class="word">keren</span><span class="count">412</span></div>
+          <div class="top-item"><span class="rank">02</span><span class="word">bagus</span><span class="count">298</span></div>
+          <div class="top-item"><span class="rank">03</span><span class="word">mantap</span><span class="count">241</span></div>
+          <div class="top-item"><span class="rank">04</span><span class="word">setuju</span><span class="count">189</span></div>
+          <div class="top-item"><span class="rank">05</span><span class="word">terimakasih</span><span class="count">156</span></div>
+          <div class="top-item"><span class="rank">06</span><span class="word">benar</span><span class="count">142</span></div>
+          <div class="top-item"><span class="rank">07</span><span class="word">indonesia</span><span class="count">128</span></div>
+          <div class="top-item"><span class="rank">08</span><span class="word">suka</span><span class="count">119</span></div>
+          <div class="top-item"><span class="rank">09</span><span class="word">gimana</span><span class="count">103</span></div>
+          <div class="top-item"><span class="rank">10</span><span class="word">banget</span><span class="count">98</span></div>
+        </div>
+      </div>
+
+      <footer class="card-footer">
+        <div>Stopwords: Sastrawi · NLTK · custom list</div>
+        <div class="card-actions">
+          <button class="card-action">⤓ Export PNG</button>
+          <button class="card-action">View all 247</button>
+        </div>
+      </footer>
+    </article>
+
+  </main>
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const curr = html.getAttribute('data-theme');
+  const next = curr === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? '☀' : '☾';
+}
+</script>
+</body>
+</html>

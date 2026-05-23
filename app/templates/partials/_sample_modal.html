@@ -1,46 +1,51 @@
-{# Sentiment sanity-check modal (Phase 7 / B4): random real comments from a bucket,
-   so the user (and audience) can verify the classifier instead of trusting it blindly.
-   Context: bucket, comments (list[Comment]), posts ({id: Post}), total, scope_qs. #}
-{% set labels = {"positive": "Positif", "neutral": "Netral", "negative": "Negatif", "unanalyzed": "Belum dianalisis"} %}
-<article style="border:1px solid var(--pico-muted-border-color);margin-top:1rem;">
-  <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
-    <strong>Contoh komentar — “{{ labels.get(bucket, bucket) }}” ({{ total }} total)</strong>
-    <button class="secondary outline" style="margin:0;padding:0.2rem 0.6rem;"
-            onclick="this.closest('article').remove()" type="button">
-      ✕ Tutup
-    </button>
-  </header>
+{# Sentiment sanity-check modal (Phase 7 / B4). Overlay + modal per reference-modal.html.
+   Context: bucket, bucket_label, dot_class, samples (list of view-models), total, n, scope_qs. #}
+<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+  <div class="modal" role="dialog" aria-labelledby="sample-title">
+    <header class="modal-header">
+      <div class="modal-header-meta">
+        <div class="modal-eyebrow"><span class="dot {{ dot_class }}"></span>Sampel {{ bucket_label }}</div>
+        <h3 class="modal-title" id="sample-title">{{ samples | length }} komentar acak <em>· model menilai ini {{ bucket_label }}</em></h3>
+        <div class="modal-sub">Pakai ini untuk mengecek model sebelum membagikan grafik.</div>
+      </div>
+      <button class="modal-close" type="button" aria-label="Tutup" onclick="this.closest('.modal-overlay').remove()">×</button>
+    </header>
 
-  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-    {% for key, label in labels.items() %}
-      <button type="button"
-              hx-get="/analysis/sentiment/sample?bucket={{ key }}&n=5&{{ scope_qs }}"
-              hx-target="#sentiment-sample-modal" hx-swap="innerHTML"
-              class="{% if key != bucket %}outline{% endif %}"
-              style="margin:0;padding:0.2rem 0.6rem;font-size:0.8rem;">
-        {{ label }}
-      </button>
-    {% endfor %}
+    <div class="modal-body">
+      {% if samples %}
+        {% for c in samples %}
+        <div class="comment">
+          <div class="comment-meta">
+            <span class="comment-handle">@{{ c.handle }}</span>
+            <span class="comment-sep">·</span>
+            <span>{{ c.when }}</span>
+          </div>
+          <p class="comment-text">{{ c.text }}</p>
+          <div class="comment-footer">
+            <span class="comment-context">{% if c.post_link %}<a href="{{ c.post_link }}" target="_blank" rel="noopener">Dari: {{ c.post_title }} ↗</a>{% else %}Dari: {{ c.post_title }}{% endif %}</span>
+            {% if c.score is not none %}<span class="comment-score {{ bucket }}">conf {{ "%.2f"|format(c.score) }}</span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="opacity:0.6;padding:24px 0;">Tidak ada komentar pada bucket ini untuk cakupan terpilih.</p>
+      {% endif %}
+    </div>
+
+    <footer class="modal-footer">
+      <div class="modal-footer-meta">{{ samples | length }} dari {{ "{:,}".format(total) }} {{ bucket_label }} · sampel acak</div>
+      <div class="modal-footer-actions">
+        <button class="btn-more" type="button" hx-get="/analysis/sentiment/sample?bucket={{ bucket }}&n={{ n }}&{{ scope_qs }}" hx-target="#modal-root" hx-swap="innerHTML">↻ Ambil ulang</button>
+        {% if total > samples | length %}
+        <button class="btn-more" type="button" hx-get="/analysis/sentiment/sample?bucket={{ bucket }}&n={{ n + 5 }}&{{ scope_qs }}" hx-target="#modal-root" hx-swap="innerHTML">Tampilkan 5 lagi</button>
+        {% endif %}
+      </div>
+    </footer>
   </div>
-
-  {% if comments %}
-    {% for c in comments %}
-      {% set p = posts.get(c.post_id) %}
-      <blockquote style="margin:0 0 0.75rem;border-left:3px solid var(--pico-muted-border-color);padding-left:0.75rem;">
-        <div>{{ c.text }}</div>
-        <small style="color:var(--pico-muted-color);">
-          — @{{ c.author_handle or "anonim" }}{% if p %} ·
-            <a href="{{ p.permalink }}" target="_blank" rel="noopener">lihat post ↗</a>{% endif %}
-        </small>
-      </blockquote>
-    {% endfor %}
-    {% if total > comments|length %}
-      <button type="button" hx-get="/analysis/sentiment/sample?bucket={{ bucket }}&n=5&{{ scope_qs }}"
-              hx-target="#sentiment-sample-modal" hx-swap="innerHTML">
-        🔁 5 komentar acak lainnya
-      </button>
-    {% endif %}
-  {% else %}
-    <p style="color:var(--pico-muted-color);">Tidak ada komentar pada bucket ini untuk cakupan terpilih.</p>
-  {% endif %}
-</article>
+</div>
+<script>
+  (function () {
+    function esc(e) { if (e.key === 'Escape') { var o = document.querySelector('.modal-overlay'); if (o) o.remove(); document.removeEventListener('keydown', esc); } }
+    document.addEventListener('keydown', esc);
+  })();
+</script>

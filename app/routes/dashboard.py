@@ -51,11 +51,27 @@ def _days_left(expires_at: str | None) -> int | None:
     return (exp - datetime.now(UTC)).days
 
 
+def _time_range(mn: str | None, mx: str | None) -> str:
+    """Friendly span between the earliest and latest comment for the hero meta."""
+    if not mn or not mx:
+        return "—"
+    try:
+        days = (datetime.fromisoformat(mx) - datetime.fromisoformat(mn)).days
+    except ValueError:
+        return "—"
+    if days >= 730:
+        return f"{round(days / 365)} thn"
+    return f"{max(days, 1)} hari"
+
+
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request):
     conn = connect()
     posts = [Post.from_row(r) for r in conn.execute("SELECT * FROM posts ORDER BY timestamp DESC")]
     last = conn.execute("SELECT MAX(ended_at) FROM fetch_log").fetchone()[0]
+    mn, mx, total = conn.execute(
+        "SELECT MIN(timestamp), MAX(timestamp), COUNT(*) FROM comments"
+    ).fetchone()
     conn.close()
     return templates.TemplateResponse(
         request,
@@ -66,6 +82,10 @@ def index(request: Request):
             "last_refreshed": _fmt_wib(last),
             "token_days_left": _days_left(settings.ig_token_expires_at),
             "sentiment_model": settings.sentiment_model,
+            "ig_username": settings.ig_username,
+            "total_comments": f"{total:,}",
+            "total_posts": len(posts),
+            "time_range": _time_range(mn, mx),
         },
     )
 

@@ -26,7 +26,8 @@ def client(tmp_path, monkeypatch):
 def test_dashboard_loads(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert "Cakupan Analisis" in r.text
+    assert "Laporan percakapan" in r.text  # hero eyebrow
+    assert "01 / 04" in r.text  # cards rendered
 
 
 @pytest.mark.parametrize(
@@ -48,7 +49,7 @@ def test_fragments_return_200_on_empty_db(client, ep):
 def test_scope_post_rerenders_grid(client):
     r = client.post("/scope", data={"scope_type": "all"})
     assert r.status_code == 200
-    assert "card-sentiment" in r.text
+    assert "01 / 04" in r.text  # grid re-rendered with the 4 cards
 
 
 def test_unknown_export_is_404(client):

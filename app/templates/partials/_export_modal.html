@@ -1,44 +1,49 @@
-{# Export format-picker modal (Phase 8 / B8). Each link streams a PNG download at an
-   Instagram preset. Optional watermark handle is appended to the download URLs.
-   Context: name (chart id), scope_qs. #}
-{% set titles = {"sentiment": "Sentimen", "wordfreq": "Frekuensi Kata", "timetrend": "Tren Waktu", "phrases": "Frasa Dominan"} %}
-<article style="border:1px solid var(--pico-muted-border-color);margin-top:1rem;">
-  <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
-    <strong>Ekspor — {{ titles.get(name, name) }}</strong>
-    <button class="secondary outline" style="margin:0;padding:0.2rem 0.6rem;"
-            onclick="this.closest('article').remove()" type="button">
-      ✕ Tutup
-    </button>
-  </header>
+{# Export format-picker modal (Phase 8 / B8). Overlay + modal per design-system.
+   Context: name (chart id), title, scope_qs. #}
+<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+  <div class="modal" role="dialog" aria-labelledby="export-title">
+    <header class="modal-header">
+      <div class="modal-header-meta">
+        <div class="modal-eyebrow"><span class="dot neu"></span>Ekspor gambar</div>
+        <h3 class="modal-title" id="export-title">{{ title }} <em>· siap dibagikan</em></h3>
+        <div class="modal-sub">Unduh PNG bersih untuk Instagram — tanpa chrome browser.</div>
+      </div>
+      <button class="modal-close" type="button" aria-label="Tutup" onclick="this.closest('.modal-overlay').remove()">×</button>
+    </header>
 
-  <label style="font-size:0.9rem;">
-    Watermark handle (opsional)
-    <input type="text" id="wm-input" placeholder="@handle_kamu" autocomplete="off" />
-  </label>
+    <div class="modal-body">
+      <div class="export-field">
+        <label for="wm-input">Watermark handle (opsional)</label>
+        <input type="text" id="wm-input" placeholder="@handle_kamu" autocomplete="off" />
+      </div>
+      <div class="modal-footer-actions">
+        <a class="btn-more wm-link" download
+           data-base="/export/{{ name }}/download?fmt=square&{{ scope_qs }}"
+           href="/export/{{ name }}/download?fmt=square&{{ scope_qs }}">⤓ Persegi 1080×1080</a>
+        <a class="btn-more wm-link" download
+           data-base="/export/{{ name }}/download?fmt=portrait&{{ scope_qs }}"
+           href="/export/{{ name }}/download?fmt=portrait&{{ scope_qs }}">⤓ Potret 1080×1350</a>
+        <a class="btn-more wm-link" download
+           data-base="/export/{{ name }}/download?fmt=story&{{ scope_qs }}"
+           href="/export/{{ name }}/download?fmt=story&{{ scope_qs }}">⤓ Story 1080×1920</a>
+      </div>
+    </div>
 
-  <p style="color:var(--pico-muted-color);margin:0.5rem 0;">Pilih ukuran gambar:</p>
-  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-    <a role="button" class="wm-link" download
-       data-base="/export/{{ name }}/download?fmt=square&{{ scope_qs }}"
-       href="/export/{{ name }}/download?fmt=square&{{ scope_qs }}">⬇️ Persegi 1080×1080</a>
-    <a role="button" class="wm-link secondary" download
-       data-base="/export/{{ name }}/download?fmt=portrait&{{ scope_qs }}"
-       href="/export/{{ name }}/download?fmt=portrait&{{ scope_qs }}">⬇️ Potret 1080×1350</a>
-    <a role="button" class="wm-link secondary" download
-       data-base="/export/{{ name }}/download?fmt=story&{{ scope_qs }}"
-       href="/export/{{ name }}/download?fmt=story&{{ scope_qs }}">⬇️ Story 1080×1920</a>
+    <footer class="modal-footer">
+      <div class="modal-footer-meta">PNG · @2× resolusi · dirender server-side</div>
+    </footer>
   </div>
-
-  <script>
-    (function () {
-      var inp = document.getElementById('wm-input');
-      if (!inp) return;
-      inp.addEventListener('input', function () {
-        var v = inp.value.trim();
-        document.querySelectorAll('.wm-link').forEach(function (a) {
-          a.href = a.dataset.base + (v ? '&watermark=' + encodeURIComponent(v) : '');
-        });
+</div>
+<script>
+  (function () {
+    var inp = document.getElementById('wm-input');
+    if (inp) inp.addEventListener('input', function () {
+      var v = inp.value.trim();
+      document.querySelectorAll('.wm-link').forEach(function (a) {
+        a.href = a.dataset.base + (v ? '&watermark=' + encodeURIComponent(v) : '');
       });
-    })();
-  </script>
-</article>
+    });
+    function esc(e) { if (e.key === 'Escape') { var o = document.querySelector('.modal-overlay'); if (o) o.remove(); document.removeEventListener('keydown', esc); } }
+    document.addEventListener('keydown', esc);
+  })();
+</script>

@@ -93,6 +93,8 @@ def cmd_setup(args: argparse.Namespace) -> None:
     set_key(str(ENV_PATH), "FB_APP_ID", str(app_id))
     set_key(str(ENV_PATH), "FB_APP_SECRET", str(app_secret))
     set_key(str(ENV_PATH), "IG_USER_ID", ig_user_id)
+    if profile.get("username"):
+        set_key(str(ENV_PATH), "IG_USERNAME", str(profile["username"]))
     set_key(str(ENV_PATH), "IG_ACCESS_TOKEN", long_token)
     expires_at = _expiry_iso(exchange.get("expires_in"))
     if expires_at:

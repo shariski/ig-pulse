@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>IG Pulse — Modal Wireframe (Sentiment Samples)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500..700;1,500..700&family=Plus+Jakarta+Sans:ital,wght@0,500..800;1,500..800&family=JetBrains+Mono:wght@500..700&display=swap" rel="stylesheet">
+<style>
+:root[data-theme="dark"] {
+  --bg: #0f0e0c;
+  --bg-elev: #1a1815;
+  --bg-card: #faf7f2;
+  --bg-card-text: #1a1815;
+  --fg: #faf7f2;
+  --fg-muted: #a8a39a;
+  --fg-subtle: #6b6760;
+  --border: #2a2722;
+  --accent: #ff5b35;
+  --pos: #5cb85c;
+  --neg: #ff5b35;
+  --neu: #a8a39a;
+}
+:root[data-theme="light"] {
+  --bg: #faf7f2;
+  --bg-elev: #f0ece4;
+  --bg-card: #1a1815;
+  --bg-card-text: #faf7f2;
+  --fg: #1a1815;
+  --fg-muted: #6b6760;
+  --fg-subtle: #a8a39a;
+  --border: #e2ddd3;
+  --accent: #ff5b35;
+  --pos: #2e8b2e;
+  --neg: #d94524;
+  --neu: #6b6760;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.context-note {
+  background: var(--bg-elev);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.context-note strong { color: var(--fg); }
+.context-note code {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 48px 32px 80px;
+  position: relative;
+}
+
+/* DIMMED SENTIMENT CARD (background context) */
+.card-dimmed {
+  background: var(--bg-card);
+  color: var(--bg-card-text);
+  padding: 48px;
+  opacity: 0.4;
+  filter: blur(2px);
+  pointer-events: none;
+}
+.card-dimmed h2 {
+  font-family: 'Lora', serif;
+  font-weight: 700;
+  font-size: 40px;
+  letter-spacing: -0.03em;
+}
+.card-dimmed .stub {
+  height: 200px;
+  margin-top: 32px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 4px;
+}
+
+/* MODAL OVERLAY */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+  animation: overlayIn 180ms ease-out;
+}
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: var(--bg-card);
+  color: var(--bg-card-text);
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  border-radius: 6px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  animation: modalIn 180ms ease-out;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* MODAL HEADER */
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 32px 32px 20px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.modal-header-meta {
+  flex: 1;
+}
+.modal-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+  opacity: 0.5;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-eyebrow .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pos);
+}
+.modal-title {
+  font-family: 'Lora', serif;
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.modal-title em {
+  font-style: italic;
+  font-weight: 600;
+  opacity: 0.6;
+}
+.modal-sub {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.6;
+  margin-top: 6px;
+}
+.modal-close {
+  background: none;
+  border: 1px solid rgba(0,0,0,0.15);
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: inherit;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.modal-close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* MODAL BODY */
+.modal-body {
+  padding: 24px 32px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* COMMENT ITEM */
+.comment {
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.comment:last-child {
+  border-bottom: none;
+}
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.6;
+}
+.comment-handle {
+  color: var(--bg-card-text);
+  opacity: 1;
+  font-weight: 700;
+}
+.comment-sep { opacity: 0.4; }
+.comment-text {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.comment-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+.comment-context {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.5;
+}
+.comment-score {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(92, 184, 92, 0.15);
+  color: var(--pos);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+/* MODAL FOOTER */
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 32px 28px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+.modal-footer-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.modal-footer-actions {
+  display: flex;
+  gap: 10px;
+}
+.btn-more {
+  background: none;
+  border: 1px solid rgba(0,0,0,0.2);
+  padding: 10px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  cursor: pointer;
+  color: inherit;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.btn-more:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* THEME TOGGLE */
+.theme-toggle {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  cursor: pointer;
+  color: var(--fg);
+  font-size: 16px;
+  z-index: 100;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .modal { max-width: 100%; }
+  .modal-header { padding: 24px 20px 16px; }
+  .modal-body { padding: 16px 20px; }
+  .modal-footer { padding: 16px 20px 24px; flex-wrap: wrap; gap: 12px; }
+  .modal-title { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+
+<div class="context-note">
+  <strong>Modal pattern · Sentiment samples</strong> — triggered when user clicks a sentiment slice or "5 random samples" button. Same pattern reused for: export options modal, n-gram expansion modal. Follows the modal spec in <code>design-system.md</code>.
+</div>
+
+<div class="wrap">
+
+  <!-- Background card (dimmed, shows context) -->
+  <article class="card-dimmed">
+    <h2>Sentiment <em>breakdown</em></h2>
+    <div class="stub"></div>
+  </article>
+
+  <!-- MODAL -->
+  <div class="modal-overlay">
+    <div class="modal" role="dialog" aria-labelledby="modal-title">
+
+      <header class="modal-header">
+        <div class="modal-header-meta">
+          <div class="modal-eyebrow"><span class="dot"></span>Positive sample</div>
+          <h3 class="modal-title" id="modal-title">5 random comments <em>· model thinks these are positive</em></h3>
+          <div class="modal-sub">Use these to sanity-check the classifier before sharing the chart.</div>
+        </div>
+        <button class="modal-close" aria-label="Close modal">×</button>
+      </header>
+
+      <div class="modal-body">
+
+        <div class="comment">
+          <div class="comment-meta">
+            <span class="comment-handle">@dinda_rahma</span>
+            <span class="comment-sep">·</span>
+            <span>May 17 · 14:23</span>
+          </div>
+          <p class="comment-text">Bagus banget kak penjelasannya, baru ngerti soal topik ini. Boleh request bahas yang serupa lagi ga?</p>
+          <div class="comment-footer">
+            <span class="comment-context">From: "Carousel review"</span>
+            <span class="comment-score">conf 0.94</span>
+          </div>
+        </div>
+
+        <div class="comment">
+          <div class="comment-meta">
+            <span class="comment-handle">@arif.setiawan</span>
+            <span class="comment-sep">·</span>
+            <span>May 15 · 09:41</span>
+          </div>
+          <p class="comment-text">Mantap kak setuju banget. Konten kayak gini yang aku tunggu di feed.</p>
+          <div class="comment-footer">
+            <span class="comment-context">From: "Update mingguan"</span>
+            <span class="comment-score">conf 0.91</span>
+          </div>
+        </div>
+
+        <div class="comment">
+          <div class="comment-meta">
+            <span class="comment-handle">@nayla_w</span>
+            <span class="comment-sep">·</span>
+            <span>May 14 · 19:08</span>
+          </div>
+          <p class="comment-text">Akhirnya ada yg ngomongin ini dengan tone yg sehat. Terimakasih ya kak udah konsisten upload!</p>
+          <div class="comment-footer">
+            <span class="comment-context">From: "Diskusi soal X"</span>
+            <span class="comment-score">conf 0.96</span>
+          </div>
+        </div>
+
+        <div class="comment">
+          <div class="comment-meta">
+            <span class="comment-handle">@bayu.fitr</span>
+            <span class="comment-sep">·</span>
+            <span>May 13 · 21:55</span>
+          </div>
+          <p class="comment-text">Gokil sih insightnya, saved buat dibaca ulang nanti</p>
+          <div class="comment-footer">
+            <span class="comment-context">From: "Reels Q&A"</span>
+            <span class="comment-score">conf 0.88</span>
+          </div>
+        </div>
+
+        <div class="comment">
+          <div class="comment-meta">
+            <span class="comment-handle">@iqbal_pratama</span>
+            <span class="comment-sep">·</span>
+            <span>May 12 · 11:32</span>
+          </div>
+          <p class="comment-text">Ini yg gw cari, finally ada akun lokal yg bahas topik ini ngga sambil drama. Terus kak!</p>
+          <div class="comment-footer">
+            <span class="comment-context">From: "Diskusi soal X"</span>
+            <span class="comment-score">conf 0.93</span>
+          </div>
+        </div>
+
+      </div>
+
+      <footer class="modal-footer">
+        <div class="modal-footer-meta">Showing 5 of 860 positive · randomly sampled</div>
+        <div class="modal-footer-actions">
+          <button class="btn-more">↻ Re-sample</button>
+          <button class="btn-more">Show 5 more</button>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+</div>
+
+<button class="theme-toggle" id="themeBtn" aria-label="Toggle theme">☾</button>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('themeBtn');
+  btn.addEventListener('click', function() {
+    const html = document.documentElement;
+    const curr = html.getAttribute('data-theme');
+    const next = curr === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    btn.textContent = next === 'dark' ? '☾' : '☀';
+  });
+});
+</script>
+</body>
+</html>

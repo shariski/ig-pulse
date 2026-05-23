@@ -1,0 +1,41 @@
+{# Time trend card body: KPI summary + legend + stacked-area SVG + insights.
+   Context: summary, chart_svg, xaxis (list[str]), insights. #}
+<div class="trend-summary">
+  <div class="summary-stat">
+    <span class="num">{{ "{:,}".format(summary.total) }}</span>
+    <div class="lbl">Total komentar</div>
+    <div class="delta">{{ summary.days }} hari aktif</div>
+  </div>
+  <div class="summary-stat">
+    <span class="num accent">{{ summary.peak_label }}</span>
+    <div class="lbl">Hari puncak</div>
+    <div class="delta">{{ summary.peak_count }} komentar</div>
+  </div>
+  <div class="summary-stat">
+    <span class="num">{{ summary.avg }}</span>
+    <div class="lbl">Rata-rata / hari</div>
+    <div class="delta">sepanjang periode</div>
+  </div>
+</div>
+
+<div class="chart-legend">
+  <div class="legend-item"><span class="legend-dot pos"></span>Positif</div>
+  <div class="legend-item"><span class="legend-dot neu"></span>Netral</div>
+  <div class="legend-item"><span class="legend-dot neg"></span>Negatif</div>
+</div>
+
+<div class="chart-wrap">{{ chart_svg | safe }}</div>
+<div class="chart-xaxis">{% for x in xaxis %}<span>{{ x }}</span>{% endfor %}</div>
+
+<div class="insights">
+  <div class="insight">
+    <div class="insight-label">Hari terbesar</div>
+    <div class="insight-content"><em>{{ insights.biggest_day }}</em> {{ insights.biggest_note }}</div>
+    <div class="insight-meta">{{ insights.biggest_meta }}</div>
+  </div>
+  <div class="insight">
+    <div class="insight-label">Rentang data</div>
+    <div class="insight-content">{{ insights.span }}</div>
+    <div class="insight-meta">{{ insights.span_meta }}</div>
+  </div>
+</div>

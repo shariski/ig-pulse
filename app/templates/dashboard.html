@@ -1,84 +1,110 @@
 {% extends "base.html" %}
-
 {% block title %}Dasbor — IG Pulse{% endblock %}
 
 {% block content %}
+<div class="app">
 
-<!-- SCOPE SELECTOR — pilih cakupan: satu post, rentang waktu, atau semua.
-     Submit via HTMX memuat ulang #analysis-grid (partials/grid.html). -->
-<section aria-label="Pilih cakupan analisis">
-  <form hx-post="/scope" hx-target="#analysis-grid" hx-swap="innerHTML" hx-indicator="#scope-spinner">
-    <fieldset>
-      <legend>Cakupan Analisis</legend>
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
-        <label style="flex:0 0 auto;">
-          Jenis cakupan
-          <select name="scope_type" id="scope_type">
-            <option value="all" selected>Semua Post</option>
-            <option value="post">Satu Post</option>
-            <option value="period">Rentang Waktu</option>
-          </select>
-        </label>
-
-        <label id="field-post" style="flex:1 1 240px;display:none;">
-          Pilih Post
-          <select name="post_id">
-            <option value="">— pilih post —</option>
-            {% for p in posts %}
-              <option value="{{ p.id }}">
-                {{ p.timestamp[:10] }} · {{ (p.caption or "(tanpa caption)")[:48] }}
-                ({{ p.comment_count or 0 }} komentar)
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-
-        <label id="field-date-from" style="flex:0 0 auto;display:none;">
-          Dari <input type="date" name="date_from" />
-        </label>
-        <label id="field-date-to" style="flex:0 0 auto;display:none;">
-          Sampai <input type="date" name="date_to" />
-        </label>
-
-        <button type="submit" style="flex:0 0 auto;">Mulai Analisis</button>
-        <span id="scope-spinner" class="htmx-indicator" aria-label="Memuat...">⏳</span>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div>
+        <div class="brand-mark">Pulse<span class="dot">.</span></div>
+        <div class="brand-sub">Analitik Komentar IG</div>
       </div>
-    </fieldset>
-  </form>
-</section>
+    </div>
 
-<!-- ANALYSIS GRID — 4 kartu, dimuat independen via HTMX (grid.html). -->
-<div id="analysis-grid" style="display:grid;gap:1.5rem;margin-top:1.5rem;">
-  {% include "partials/grid.html" %}
+    <form class="scope-group" hx-post="/scope" hx-target="#analysis-grid" hx-swap="innerHTML" hx-indicator="#scope-spinner">
+      <div class="section-label">Cakupan</div>
+      <div class="scope-options">
+        <label class="scope-option active">
+          <input type="radio" name="scope_type" value="all" hidden checked />
+          <span class="check"></span><span>Semua post</span>
+        </label>
+        <label class="scope-option">
+          <input type="radio" name="scope_type" value="post" hidden />
+          <span class="check"></span><span>Satu post</span>
+        </label>
+        <label class="scope-option">
+          <input type="radio" name="scope_type" value="period" hidden />
+          <span class="check"></span><span>Rentang waktu</span>
+        </label>
+      </div>
+
+      <div class="scope-extra" id="extra-post" hidden>
+        <select name="post_id">
+          <option value="">— pilih post —</option>
+          {% for p in posts %}
+            <option value="{{ p.id }}">{{ p.timestamp[:10] }} · {{ (p.caption or "(tanpa caption)")[:40] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scope-extra" id="extra-period" hidden>
+        <input type="date" name="date_from" />
+        <input type="date" name="date_to" />
+      </div>
+
+      <button class="cta" type="submit" style="margin-top:20px;">Jalankan Analisis →</button>
+      <span id="scope-spinner" class="htmx-indicator" style="font-size:12px;color:var(--fg-muted);"> memuat…</span>
+    </form>
+
+    <div class="sidebar-foot">
+      <strong>@{{ ig_username or "akun terhubung" }}</strong><br />
+      {% if token_days_left is not none %}
+        <span class="badge {% if token_days_left < 30 %}badge-warn{% else %}badge-pos{% endif %}">{{ token_days_left }} hari lagi</span>
+      {% else %}
+        <span class="badge badge-neu">token aktif</span>
+      {% endif %}<br />
+      <span style="opacity:0.6">
+        {% if last_refreshed %}Diperbarui {{ last_refreshed }}{% else %}Belum pernah diperbarui{% endif %}
+      </span>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <section class="hero">
+      <div class="hero-refresh">
+        <span>{% if last_refreshed %}Diperbarui {{ last_refreshed }}{% else %}Belum diperbarui{% endif %}</span>
+        <button class="refresh-btn" type="button" hx-post="/refresh" hx-target="#refresh-status" hx-swap="innerHTML">↻ Perbarui</button>
+      </div>
+      <div class="hero-eyebrow">— Laporan percakapan</div>
+      <h1 class="hero-title">Apa yang <em>sebenarnya</em><br />mereka katakan<br />di komentarmu.</h1>
+      <div class="hero-meta">
+        <div><strong>{{ total_comments }}</strong>komentar dianalisis</div>
+        <div><strong>{{ total_posts }}</strong>postingan</div>
+        <div><strong>{{ time_range }}</strong>rentang</div>
+      </div>
+      <div id="refresh-status" style="font-size:12px;color:var(--fg-muted);margin-top:8px;"></div>
+    </section>
+
+    <div id="analysis-grid">
+      {% include "partials/grid.html" %}
+    </div>
+
+    <div id="modal-root" aria-live="polite"></div>
+  </main>
 </div>
-
-<!-- Modal target untuk tombol Ekspor (semua kartu) -->
-<div id="export-modal" aria-live="polite"></div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // Minimal inline JS (B6): toggle scope sub-fields. Re-bind after HTMX swaps too.
+  // Scope picker: highlight active option + reveal its extra fields. Sidebar form
+  // is never swapped, so binding once on load is enough.
   (function () {
-    function bind() {
-      var t = document.getElementById('scope_type');
-      if (!t || t.dataset.bound) return;
-      t.dataset.bound = '1';
-      function toggle() {
-        var v = t.value;
-        var post = document.getElementById('field-post');
-        var from = document.getElementById('field-date-from');
-        var to = document.getElementById('field-date-to');
-        if (post) post.style.display = v === 'post' ? '' : 'none';
-        if (from) from.style.display = v === 'period' ? '' : 'none';
-        if (to) to.style.display = v === 'period' ? '' : 'none';
-      }
-      t.addEventListener('change', toggle);
-      toggle();
+    var radios = document.querySelectorAll('.scope-option input[type=radio]');
+    function sync() {
+      var val = 'all';
+      radios.forEach(function (r) {
+        r.closest('.scope-option').classList.toggle('active', r.checked);
+        if (r.checked) val = r.value;
+      });
+      var post = document.getElementById('extra-post');
+      var period = document.getElementById('extra-period');
+      if (post) post.hidden = val !== 'post';
+      if (period) period.hidden = val !== 'period';
     }
-    bind();
-    document.body.addEventListener('htmx:afterSwap', bind);
+    radios.forEach(function (r) { r.addEventListener('change', sync); });
+    sync();
   })();
 </script>
 {% endblock %}

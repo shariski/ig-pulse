@@ -28,4 +28,4 @@ venv/
 
 # Dev artifacts
 .playwright-mcp/
-ig-pulse-dashboard.png
+ig-pulse-*.png

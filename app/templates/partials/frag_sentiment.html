@@ -1,0 +1,22 @@
+{# Sentiment card body: clickable stat rows + SVG donut. Context: stats, donut_svg,
+   classified, scope_qs. Each row opens that bucket's sample modal (B4 affordance). #}
+<div class="sentiment-body">
+  <div class="sentiment-stats">
+    {% for s in stats %}
+    <button class="stat-row {{ s.cls }}" type="button"
+            hx-get="/analysis/sentiment/sample?bucket={{ s.bucket }}&n=5&{{ scope_qs }}"
+            hx-target="#modal-root" hx-swap="innerHTML">
+      <div class="stat-num">{{ s.pct }}%</div>
+      <div class="stat-label">{{ s.label }}</div>
+      <div class="stat-count">{{ "{:,}".format(s.count) }} komentar →</div>
+    </button>
+    {% endfor %}
+  </div>
+  <div class="donut-wrap">
+    {{ donut_svg | safe }}
+    <div class="donut-center">
+      <div class="num">{{ "{:,}".format(classified) }}</div>
+      <div class="label">terklasifikasi</div>
+    </div>
+  </div>
+</div>

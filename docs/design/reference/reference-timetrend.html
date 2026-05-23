@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>IG Pulse — Time Trend Wireframe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500..700;1,500..700&family=Plus+Jakarta+Sans:ital,wght@0,500..800;1,500..800&family=JetBrains+Mono:wght@500..700&display=swap" rel="stylesheet">
+<style>
+:root[data-theme="dark"] {
+  --bg: #0f0e0c;
+  --bg-elev: #1a1815;
+  --bg-card: #faf7f2;
+  --bg-card-text: #1a1815;
+  --fg: #faf7f2;
+  --fg-muted: #a8a39a;
+  --fg-subtle: #6b6760;
+  --border: #2a2722;
+  --accent: #ff5b35;
+  --pos: #5cb85c;
+  --neg: #ff5b35;
+  --neu: #a8a39a;
+}
+:root[data-theme="light"] {
+  --bg: #faf7f2;
+  --bg-elev: #f0ece4;
+  --bg-card: #1a1815;
+  --bg-card-text: #faf7f2;
+  --fg: #1a1815;
+  --fg-muted: #6b6760;
+  --fg-subtle: #a8a39a;
+  --border: #e2ddd3;
+  --accent: #ff5b35;
+  --pos: #2e8b2e;
+  --neg: #d94524;
+  --neu: #6b6760;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.context-note {
+  background: var(--bg-elev);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.context-note strong { color: var(--fg); }
+.context-note code {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 48px 32px 80px;
+}
+
+/* CARD */
+.card {
+  background: var(--bg-card);
+  color: var(--bg-card-text);
+  padding: 48px;
+}
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+.card-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+  opacity: 0.5;
+  margin-bottom: 8px;
+}
+.card-title {
+  font-family: 'Lora', serif;
+  font-weight: 700;
+  font-size: 40px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.card-title em {
+  font-style: italic;
+  font-weight: 600;
+}
+.card-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.5;
+  font-weight: 600;
+}
+
+/* HEADER STATS */
+.trend-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  padding: 24px 0;
+  margin-bottom: 32px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.summary-stat .num {
+  font-family: 'Lora', serif;
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  display: block;
+}
+.summary-stat .num.pos { color: var(--pos); }
+.summary-stat .num.neg { color: var(--neg); }
+.summary-stat .num.accent { color: var(--accent); }
+.summary-stat .lbl {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 6px;
+  opacity: 0.7;
+}
+.summary-stat .delta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.delta.up { color: var(--pos); }
+.delta.down { color: var(--neg); }
+
+/* CHART AREA */
+.chart-section {
+  margin-bottom: 24px;
+}
+.chart-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.chart-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(0,0,0,0.04);
+  padding: 4px;
+  border-radius: 4px;
+}
+.chart-tab {
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.5;
+  border-radius: 3px;
+}
+.chart-tab.active {
+  background: var(--bg-card-text);
+  color: var(--bg-card);
+  opacity: 1;
+}
+.chart-legend {
+  display: flex;
+  gap: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.legend-dot.pos { background: var(--pos); }
+.legend-dot.neu { background: var(--neu); }
+.legend-dot.neg { background: var(--neg); }
+
+/* MOCK PLOTLY CHART */
+.chart-wrap {
+  position: relative;
+  height: 320px;
+  background: rgba(0,0,0,0.02);
+  padding: 24px 16px 32px;
+  margin-bottom: 16px;
+}
+.chart-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.chart-xaxis {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px;
+  margin-top: -16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  opacity: 0.5;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* POST MARKERS */
+.post-marker {
+  position: absolute;
+  bottom: 20px;
+  width: 2px;
+  height: 8px;
+  background: var(--accent);
+  cursor: pointer;
+}
+.post-marker:hover::after {
+  content: attr(data-label);
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card-text);
+  color: var(--bg-card);
+  padding: 6px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+/* HOVER TOOLTIP (sample) */
+.tooltip-demo {
+  position: absolute;
+  background: var(--bg-card-text);
+  color: var(--bg-card);
+  padding: 12px 14px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+  border-radius: 3px;
+  min-width: 180px;
+  z-index: 10;
+}
+.tooltip-demo .t-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.tooltip-demo .t-total {
+  font-family: 'Lora', serif;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.tooltip-demo .t-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 11px;
+}
+.tooltip-demo .t-row .dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.tooltip-demo hr {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  margin: 8px 0;
+}
+.tooltip-demo .t-posts {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.tooltip-demo .t-post {
+  font-size: 11px;
+  opacity: 0.9;
+  padding: 2px 0;
+}
+
+/* PEAK/INSIGHT CALLOUT */
+.insights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+.insight {
+  border: 1px solid rgba(0,0,0,0.1);
+  padding: 16px 18px;
+}
+.insight-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.5;
+  margin-bottom: 8px;
+}
+.insight-content {
+  font-family: 'Lora', serif;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.insight-content em {
+  font-style: italic;
+  color: var(--accent);
+}
+.insight-meta {
+  margin-top: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  opacity: 0.5;
+  font-weight: 600;
+}
+
+/* FOOTER */
+.card-footer {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  opacity: 0.6;
+  font-weight: 500;
+}
+.card-footer code {
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0,0,0,0.05);
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.card-actions { display: flex; gap: 12px; }
+.card-action {
+  background: none;
+  border: 1px solid currentColor;
+  border-color: rgba(0,0,0,0.2);
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  transition: all 0.15s;
+  border-radius: 4px;
+}
+.card-action:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
+
+/* THEME TOGGLE */
+.theme-toggle {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  cursor: pointer;
+  color: var(--fg);
+  font-size: 16px;
+  z-index: 100;
+}
+</style>
+</head>
+<body>
+
+<div class="context-note">
+  <strong>Card 03 / 04 · Time Trend</strong> — wireframe shown standalone. In the dashboard, this card sits below sentiment + word frequency cards. Card follows the pattern in <code>design-system.md</code>.
+</div>
+
+<div class="wrap">
+
+  <article class="card">
+    <header class="card-header">
+      <div>
+        <div class="card-num">03 / 04</div>
+        <h2 class="card-title">When they <em>talked</em></h2>
+        <div class="card-sub">Comment volume + sentiment over time</div>
+      </div>
+    </header>
+
+    <!-- Summary stats: 4 KPIs -->
+    <div class="trend-summary">
+      <div class="summary-stat">
+        <span class="num">2,847</span>
+        <div class="lbl">Total comments</div>
+        <div class="delta up">↗ +18% vs last 30d</div>
+      </div>
+      <div class="summary-stat">
+        <span class="num accent">May 17</span>
+        <div class="lbl">Peak day</div>
+        <div class="delta">412 comments</div>
+      </div>
+      <div class="summary-stat">
+        <span class="num">95</span>
+        <div class="lbl">Avg per day</div>
+        <div class="delta down">↘ -4% vs prev</div>
+      </div>
+      <div class="summary-stat">
+        <span class="num pos">+8%</span>
+        <div class="lbl">Sentiment shift</div>
+        <div class="delta">More positive</div>
+      </div>
+    </div>
+
+    <!-- Chart controls -->
+    <div class="chart-section">
+      <div class="chart-controls">
+        <div class="chart-tabs">
+          <button class="chart-tab active">Per day</button>
+          <button class="chart-tab">Per week</button>
+          <button class="chart-tab">Per post</button>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><span class="legend-dot pos"></span>Positive</div>
+          <div class="legend-item"><span class="legend-dot neu"></span>Neutral</div>
+          <div class="legend-item"><span class="legend-dot neg"></span>Negative</div>
+        </div>
+      </div>
+
+      <!-- MOCK CHART (will be Plotly in implementation) -->
+      <div class="chart-wrap">
+        <svg class="chart-svg" viewBox="0 0 800 280" preserveAspectRatio="none">
+          <!-- Grid lines -->
+          <line x1="0" y1="70" x2="800" y2="70" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>
+          <line x1="0" y1="140" x2="800" y2="140" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>
+          <line x1="0" y1="210" x2="800" y2="210" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>
+
+          <!-- Y axis labels -->
+          <text x="6" y="74" font-family="JetBrains Mono" font-size="9" fill="currentColor" opacity="0.5" font-weight="600">300</text>
+          <text x="6" y="144" font-family="JetBrains Mono" font-size="9" fill="currentColor" opacity="0.5" font-weight="600">200</text>
+          <text x="6" y="214" font-family="JetBrains Mono" font-size="9" fill="currentColor" opacity="0.5" font-weight="600">100</text>
+
+          <!-- Stacked area: negative (bottom) + neutral + positive -->
+          <!-- For wireframe, just showing simplified shapes -->
+          <path d="M 40 240 L 100 220 L 160 230 L 220 200 L 280 180 L 340 210 L 400 150 L 460 80 L 520 130 L 580 170 L 640 190 L 700 200 L 760 220 L 760 280 L 40 280 Z"
+                fill="#5cb85c" fill-opacity="0.7"/>
+          <path d="M 40 250 L 100 240 L 160 245 L 220 230 L 280 220 L 340 235 L 400 200 L 460 160 L 520 190 L 580 220 L 640 230 L 700 235 L 760 245 L 760 280 L 40 280 Z"
+                fill="#a8a39a" fill-opacity="0.7"/>
+          <path d="M 40 265 L 100 260 L 160 262 L 220 255 L 280 250 L 340 258 L 400 240 L 460 220 L 520 235 L 580 250 L 640 258 L 700 262 L 760 268 L 760 280 L 40 280 Z"
+                fill="#ff5b35" fill-opacity="0.7"/>
+
+          <!-- Total line on top -->
+          <polyline points="40,240 100,220 160,230 220,200 280,180 340,210 400,150 460,80 520,130 580,170 640,190 700,200 760,220"
+                    fill="none" stroke="#1a1815" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+          <!-- Peak marker -->
+          <circle cx="460" cy="80" r="6" fill="#ff5b35" stroke="white" stroke-width="2"/>
+        </svg>
+
+        <!-- Post markers below chart -->
+        <div class="post-marker" style="left: 12%;" data-label="Post: 'Diskusi soal X' · 89 comments"></div>
+        <div class="post-marker" style="left: 28%;" data-label="Post: 'Update mingguan' · 156 comments"></div>
+        <div class="post-marker" style="left: 45%;" data-label="Post: 'Carousel review' · 234 comments"></div>
+        <div class="post-marker" style="left: 58%;" data-label="Post: 'Viral thread' · 412 comments"></div>
+        <div class="post-marker" style="left: 72%;" data-label="Post: 'Reels Q&A' · 198 comments"></div>
+        <div class="post-marker" style="left: 88%;" data-label="Post: 'Story repost' · 124 comments"></div>
+
+        <!-- Tooltip example (showing what hover state looks like) -->
+        <div class="tooltip-demo" style="top: 30px; left: 480px;">
+          <div class="t-date">May 17, Sat</div>
+          <div class="t-total">412 comments</div>
+          <div class="t-row"><span><span class="dot" style="background:#5cb85c;"></span>Positive</span><span>148 · 36%</span></div>
+          <div class="t-row"><span><span class="dot" style="background:#a8a39a;"></span>Neutral</span><span>156 · 38%</span></div>
+          <div class="t-row"><span><span class="dot" style="background:#ff5b35;"></span>Negative</span><span>108 · 26%</span></div>
+          <hr>
+          <div class="t-posts">Top contributing posts</div>
+          <div class="t-post">· "Viral thread" — 234</div>
+          <div class="t-post">· "Carousel review" — 178</div>
+        </div>
+      </div>
+
+      <div class="chart-xaxis">
+        <span>Apr 23</span>
+        <span>Apr 30</span>
+        <span>May 7</span>
+        <span>May 14</span>
+        <span>May 17 (peak)</span>
+        <span>May 21</span>
+      </div>
+    </div>
+
+    <!-- Insight callouts -->
+    <div class="insights">
+      <div class="insight">
+        <div class="insight-label">Biggest day</div>
+        <div class="insight-content"><em>Saturday, May 17</em> drove 14% of all comments this period</div>
+        <div class="insight-meta">412 comments · driven by "Viral thread" post</div>
+      </div>
+      <div class="insight">
+        <div class="insight-label">Sentiment trend</div>
+        <div class="insight-content">Conversation got more <em>positive</em> over time</div>
+        <div class="insight-meta">+8% positive vs first half of period</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="card-footer">
+      <div>Aggregated by day in WIB · post markers indicate publish dates</div>
+      <div class="card-actions">
+        <button class="card-action">⤓ Export PNG</button>
+        <button class="card-action">View raw data</button>
+      </div>
+    </footer>
+  </article>
+
+</div>
+
+<button class="theme-toggle" id="themeBtn" aria-label="Toggle theme">☾</button>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('themeBtn');
+  btn.addEventListener('click', function() {
+    const html = document.documentElement;
+    const curr = html.getAttribute('data-theme');
+    const next = curr === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    btn.textContent = next === 'dark' ? '☾' : '☀';
+  });
+});
+</script>
+</body>
+</html>

@@ -22,6 +22,12 @@ router = APIRouter()
 logger = logging.getLogger("ig_pulse.routes.export")
 
 CHART_NAMES = {"sentiment", "wordfreq", "timetrend", "phrases"}
+_TITLES = {
+    "sentiment": "Sentimen",
+    "wordfreq": "Frekuensi Kata",
+    "timetrend": "Tren Waktu",
+    "phrases": "Frasa Dominan",
+}
 
 
 @router.get("/export/{name}", response_class=HTMLResponse)
@@ -32,7 +38,8 @@ def export_modal(
         return HTMLResponse("", status_code=404)
     qs = f"scope_type={scope_type}" + (f"&scope_value={scope_value}" if scope_value else "")
     return templates.TemplateResponse(
-        request, "partials/_export_modal.html", {"name": name, "scope_qs": qs}
+        request, "partials/_export_modal.html",
+        {"name": name, "title": _TITLES[name], "scope_qs": qs},
     )
 
 

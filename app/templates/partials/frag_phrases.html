@@ -1,0 +1,11 @@
+{# Dominant phrases card body: ranked bigram/trigram list (stat-row pattern).
+   Context: phrases (list of {phrase, count}). #}
+<div class="top-list" style="border-left:none;padding-left:0;">
+  {% for p in phrases %}
+  <div class="top-item">
+    <span class="rank">{{ "%02d" | format(loop.index) }}</span>
+    <span class="word" style="font-size:18px;">{{ p.phrase }}</span>
+    <span class="count">{{ "{:,}".format(p.count) }}×</span>
+  </div>
+  {% endfor %}
+</div>

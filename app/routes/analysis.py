@@ -1,30 +1,44 @@
-"""HTMX analysis fragments: one chart per card, plus the sentiment sample modal.
+"""HTMX analysis fragments (editorial cards) + the sentiment sample modal.
 
-Each fragment is self-contained and fails independently (B6): an error in one
-card renders an inline error message, never breaks the others. All read from
-SQLite (source of truth, B5); no API calls here.
+On-screen charts are hand-built HTML/SVG (theme-reactive), not Plotly. Each
+fragment fails independently (B6): an error renders an inline retry, never breaks
+the page. All reads from SQLite (B5); no API calls.
 """
 
 from __future__ import annotations
 
-import base64
-import io
 import logging
 import random
 from collections import Counter
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from app.analysis import phrases, timetrend, wordfreq
+from app.analysis import phrases as phrases_mod
+from app.analysis import timetrend, wordfreq
+from app.config import settings
 from app.db import connect, get_comments_in_scope
 from app.models import Post
-from app.render import charts
-from app.render import wordcloud as wc_render
+from app.render import svg
 from app.templating import templates
 
 router = APIRouter()
 logger = logging.getLogger("ig_pulse.routes.analysis")
+
+_ID_MONTHS = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+              "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+_BUCKETS = {
+    "positive": ("positif", "pos"),
+    "negative": ("negatif", "neg"),
+    "neutral": ("netral", "neu"),
+    "unanalyzed": ("belum dianalisis", "neu"),
+}
+
+
+def _scope_qs(scope_type: str, scope_value: str | None) -> str:
+    return f"scope_type={scope_type}" + (f"&scope_value={scope_value}" if scope_value else "")
 
 
 def scope_data(scope_type: str, scope_value: str | None):
@@ -41,38 +55,70 @@ def scope_data(scope_type: str, scope_value: str | None):
         conn.close()
 
 
-def plotly_html(fig) -> str:
-    # Plotly is loaded once globally in base.html, so fragments embed without it.
-    return fig.to_html(include_plotlyjs=False, full_html=False)
+def _id_date(iso_date: str) -> str:
+    """'2025-05-17' -> '17 Mei'."""
+    try:
+        d = datetime.strptime(iso_date, "%Y-%m-%d")
+        return f"{d.day} {_ID_MONTHS[d.month]}"
+    except ValueError:
+        return iso_date
+
+
+def _id_datetime(ts: str) -> str:
+    """IG timestamp -> '17 Mei · 14:23' in WIB."""
+    try:
+        dt = datetime.fromisoformat(ts)
+    except ValueError:
+        try:
+            dt = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S%z")
+        except ValueError:
+            return ts
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    dt = dt.astimezone(ZoneInfo(settings.timezone))
+    return f"{dt.day} {_ID_MONTHS[dt.month]} · {dt:%H:%M}"
 
 
 def _empty(msg: str) -> HTMLResponse:
-    return HTMLResponse(
-        f'<p style="text-align:center;color:var(--pico-muted-color);padding:2rem;">{msg}</p>'
-    )
+    return HTMLResponse(f'<div class="state-empty">{msg}</div>')
 
 
-def _error(msg: str) -> HTMLResponse:
+def _error(retry_url: str, msg: str = "Gagal memuat analisis ini.") -> HTMLResponse:
     return HTMLResponse(
-        f'<p role="alert" style="color:var(--pico-del-color);padding:1rem;">⚠️ {msg}</p>'
+        f'<div class="state-error"><div>⚠️ {msg}</div>'
+        f'<button class="card-action" hx-get="{retry_url}" '
+        f'hx-target="closest .card-body" hx-swap="innerHTML">Coba lagi</button></div>'
     )
 
 
 @router.get("/analysis/sentiment", response_class=HTMLResponse)
-def sentiment_fragment(scope_type: str = "all", scope_value: str | None = None):
+def sentiment_fragment(request: Request, scope_type: str = "all", scope_value: str | None = None):
     try:
         comments, analyses = scope_data(scope_type, scope_value)
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
+        total = len(comments)
         dist = Counter(analyses.get(c.id, "unanalyzed") for c in comments)
-        return HTMLResponse(plotly_html(charts.sentiment_pie(dict(dist))))
+        stats = [
+            {"cls": cls, "bucket": b, "label": lbl, "count": dist.get(b, 0),
+             "pct": round(dist.get(b, 0) / total * 100)}
+            for b, lbl, cls in [("positive", "Positif", "positive"),
+                                ("neutral", "Netral", "neutral"),
+                                ("negative", "Negatif", "negative")]
+        ]
+        return templates.TemplateResponse(request, "partials/frag_sentiment.html", {
+            "stats": stats,
+            "donut_svg": svg.sentiment_donut_svg(dict(dist)),
+            "classified": total - dist.get("unanalyzed", 0),
+            "scope_qs": _scope_qs(scope_type, scope_value),
+        })
     except Exception:
         logger.exception("sentiment fragment failed")
-        return _error("Gagal memuat sentimen.")
+        return _error(str(request.url))
 
 
 @router.get("/analysis/wordfreq", response_class=HTMLResponse)
-def wordfreq_fragment(scope_type: str = "all", scope_value: str | None = None):
+def wordfreq_fragment(request: Request, scope_type: str = "all", scope_value: str | None = None):
     try:
         comments, _ = scope_data(scope_type, scope_value)
         if not comments:
@@ -80,46 +126,68 @@ def wordfreq_fragment(scope_type: str = "all", scope_value: str | None = None):
         freqs = wordfreq.word_frequencies(comments, 100)
         if not freqs:
             return _empty("Tidak ada kata tersisa setelah penyaringan stopword.")
-        img = wc_render.render_wordcloud(freqs)
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        data_uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
-        bar = plotly_html(charts.word_freq_bar(freqs, 20))
-        return HTMLResponse(
-            f'<img src="{data_uri}" alt="Word cloud" '
-            'style="width:100%;height:auto;border-radius:8px;margin-bottom:1rem;" />' + bar
-        )
+        cloud_words = []
+        for i, (word, _count) in enumerate(freqs[:16]):
+            cls = "s1" if i == 0 else "s2" if i < 4 else "s3" if i < 8 else "s4" if i < 12 else "s5"
+            cloud_words.append({"word": word, "cls": cls})
+        top_items = [{"rank": i + 1, "word": w, "count": c} for i, (w, c) in enumerate(freqs[:10])]
+        return templates.TemplateResponse(request, "partials/frag_wordfreq.html", {
+            "cloud_words": cloud_words, "top_items": top_items,
+        })
     except Exception:
         logger.exception("wordfreq fragment failed")
-        return _error("Gagal memuat frekuensi kata.")
+        return _error(str(request.url))
 
 
 @router.get("/analysis/timetrend", response_class=HTMLResponse)
-def timetrend_fragment(scope_type: str = "all", scope_value: str | None = None):
+def timetrend_fragment(request: Request, scope_type: str = "all", scope_value: str | None = None):
     try:
         comments, analyses = scope_data(scope_type, scope_value)
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         rows = timetrend.daily_trend(comments, analyses)
-        return HTMLResponse(plotly_html(charts.timetrend_line(rows)))
+        total = sum(r["total"] for r in rows)
+        days = len(rows)
+        peak = max(rows, key=lambda r: r["total"])
+        n = len(rows)
+        idxs = sorted({0, n // 5, 2 * n // 5, 3 * n // 5, 4 * n // 5, n - 1}) if n > 1 else [0]
+        xaxis = [_id_date(rows[i]["date"]) for i in idxs]
+        summary = {
+            "total": total, "days": days,
+            "peak_label": _id_date(peak["date"]), "peak_count": peak["total"],
+            "avg": round(total / days) if days else 0,
+        }
+        insights = {
+            "biggest_day": _id_date(peak["date"]),
+            "biggest_note": f"menyumbang {round(peak['total'] / total * 100)}% komentar",
+            "biggest_meta": f"{peak['total']} komentar",
+            "span": f"{_id_date(rows[0]['date'])} – {_id_date(rows[-1]['date'])}",
+            "span_meta": f"{days} hari dengan komentar",
+        }
+        return templates.TemplateResponse(request, "partials/frag_timetrend.html", {
+            "summary": summary, "chart_svg": svg.timetrend_area_svg(rows),
+            "xaxis": xaxis, "insights": insights,
+        })
     except Exception:
         logger.exception("timetrend fragment failed")
-        return _error("Gagal memuat tren waktu.")
+        return _error(str(request.url))
 
 
 @router.get("/analysis/phrases", response_class=HTMLResponse)
-def phrases_fragment(scope_type: str = "all", scope_value: str | None = None):
+def phrases_fragment(request: Request, scope_type: str = "all", scope_value: str | None = None):
     try:
         comments, _ = scope_data(scope_type, scope_value)
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
-        ph = phrases.top_phrases(comments)
+        ph = phrases_mod.top_phrases(comments)
         if not ph:
             return _empty("Belum ada frasa yang muncul ≥ 3 kali pada cakupan ini.")
-        return HTMLResponse(plotly_html(charts.phrase_bar(ph)))
+        return templates.TemplateResponse(request, "partials/frag_phrases.html", {
+            "phrases": [{"phrase": p, "count": c} for p, c in ph],
+        })
     except Exception:
         logger.exception("phrases fragment failed")
-        return _error("Gagal memuat frasa dominan.")
+        return _error(str(request.url))
 
 
 @router.get("/analysis/sentiment/sample", response_class=HTMLResponse)
@@ -133,25 +201,32 @@ def sentiment_sample(
     conn = connect()
     try:
         comments = get_comments_in_scope(conn, scope_type, scope_value)
-        analyses = {
-            r["comment_id"]: r["sentiment_label"]
-            for r in conn.execute("SELECT comment_id, sentiment_label FROM comment_analysis")
+        analysis_rows = {
+            r["comment_id"]: (r["sentiment_label"], r["sentiment_score"])
+            for r in conn.execute(
+                "SELECT comment_id, sentiment_label, sentiment_score FROM comment_analysis"
+            )
         }
         posts = {p.id: p for p in (Post.from_row(r) for r in conn.execute("SELECT * FROM posts"))}
     finally:
         conn.close()
 
-    matching = [c for c in comments if analyses.get(c.id, "unanalyzed") == bucket]
-    sample = random.sample(matching, min(n, len(matching)))
-    return templates.TemplateResponse(
-        request,
-        "partials/_sample_modal.html",
-        {
-            "bucket": bucket,
-            "comments": sample,
-            "posts": posts,
-            "total": len(matching),
-            "scope_qs": f"scope_type={scope_type}"
-            + (f"&scope_value={scope_value}" if scope_value else ""),
-        },
-    )
+    matching = [c for c in comments if analysis_rows.get(c.id, ("unanalyzed", None))[0] == bucket]
+    chosen = random.sample(matching, min(n, len(matching)))
+    samples = []
+    for c in chosen:
+        post = posts.get(c.post_id)
+        samples.append({
+            "handle": c.author_handle or "anonim",
+            "text": c.text,
+            "when": _id_datetime(c.timestamp),
+            "post_title": ((post.caption or "(tanpa caption)")[:32] if post else "post"),
+            "post_link": post.permalink if post else None,
+            "score": analysis_rows.get(c.id, (None, None))[1],
+        })
+    label, dot = _BUCKETS.get(bucket, (bucket, "neu"))
+    return templates.TemplateResponse(request, "partials/_sample_modal.html", {
+        "bucket": bucket, "bucket_label": label, "dot_class": dot,
+        "samples": samples, "total": len(matching), "n": n,
+        "scope_qs": _scope_qs(scope_type, scope_value),
+    })

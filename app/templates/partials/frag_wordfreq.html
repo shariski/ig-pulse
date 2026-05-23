@@ -1,0 +1,17 @@
+{# Word frequency card body: editorial HTML word cloud + ranked top list.
+   Context: cloud_words (list of {word, cls}), top_items (list of {rank, word, count}). #}
+<div class="cloud-body">
+  <div class="cloud-words">
+    {% for w in cloud_words %}<span class="cloud-word {{ w.cls }}">{{ w.word }}</span>{% endfor %}
+  </div>
+  <div class="top-list">
+    <div class="top-list-title">Top {{ top_items | length }}</div>
+    {% for it in top_items %}
+    <div class="top-item">
+      <span class="rank">{{ "%02d" | format(it.rank) }}</span>
+      <span class="word">{{ it.word }}</span>
+      <span class="count">{{ "{:,}".format(it.count) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
