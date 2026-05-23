@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from app import auth
 from app.analysis import phrases as phrases_mod
 from app.analysis import timetrend, wordfreq
 from app.config import settings
@@ -41,9 +42,9 @@ def _scope_qs(scope_type: str, scope_value: str | None) -> str:
     return f"scope_type={scope_type}" + (f"&scope_value={scope_value}" if scope_value else "")
 
 
-def scope_data(scope_type: str, scope_value: str | None):
+def scope_data(db_path: str, scope_type: str, scope_value: str | None):
     """Load comments for a scope + a {comment_id: sentiment_label} map."""
-    conn = connect()
+    conn = connect(db_path)
     try:
         comments = get_comments_in_scope(conn, scope_type, scope_value)
         analyses = {
@@ -92,9 +93,14 @@ def _error(retry_url: str, msg: str = "Gagal memuat analisis ini.") -> HTMLRespo
 
 
 @router.get("/analysis/sentiment", response_class=HTMLResponse)
-def sentiment_fragment(request: Request, scope_type: str = "all", scope_value: str | None = None):
+def sentiment_fragment(
+    request: Request,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    account=auth.current_account,
+):
     try:
-        comments, analyses = scope_data(scope_type, scope_value)
+        comments, analyses = scope_data(account["db_path"], scope_type, scope_value)
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         total = len(comments)
@@ -118,9 +124,14 @@ def sentiment_fragment(request: Request, scope_type: str = "all", scope_value: s
 
 
 @router.get("/analysis/wordfreq", response_class=HTMLResponse)
-def wordfreq_fragment(request: Request, scope_type: str = "all", scope_value: str | None = None):
+def wordfreq_fragment(
+    request: Request,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    account=auth.current_account,
+):
     try:
-        comments, _ = scope_data(scope_type, scope_value)
+        comments, _ = scope_data(account["db_path"], scope_type, scope_value)
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         freqs = wordfreq.word_frequencies(comments, 100)
@@ -140,9 +151,14 @@ def wordfreq_fragment(request: Request, scope_type: str = "all", scope_value: st
 
 
 @router.get("/analysis/timetrend", response_class=HTMLResponse)
-def timetrend_fragment(request: Request, scope_type: str = "all", scope_value: str | None = None):
+def timetrend_fragment(
+    request: Request,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    account=auth.current_account,
+):
     try:
-        comments, analyses = scope_data(scope_type, scope_value)
+        comments, analyses = scope_data(account["db_path"], scope_type, scope_value)
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         rows = timetrend.daily_trend(comments, analyses)
@@ -174,9 +190,14 @@ def timetrend_fragment(request: Request, scope_type: str = "all", scope_value: s
 
 
 @router.get("/analysis/phrases", response_class=HTMLResponse)
-def phrases_fragment(request: Request, scope_type: str = "all", scope_value: str | None = None):
+def phrases_fragment(
+    request: Request,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    account=auth.current_account,
+):
     try:
-        comments, _ = scope_data(scope_type, scope_value)
+        comments, _ = scope_data(account["db_path"], scope_type, scope_value)
         if not comments:
             return _empty("Belum ada komentar pada cakupan ini.")
         ph = phrases_mod.top_phrases(comments)
@@ -197,8 +218,9 @@ def sentiment_sample(
     n: int = 5,
     scope_type: str = "all",
     scope_value: str | None = None,
+    account=auth.current_account,
 ):
-    conn = connect()
+    conn = connect(account["db_path"])
     try:
         comments = get_comments_in_scope(conn, scope_type, scope_value)
         analysis_rows = {

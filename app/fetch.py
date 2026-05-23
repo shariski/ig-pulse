@@ -55,23 +55,31 @@ def _comment_from_api(c: dict, post_id: str, parent_id: str | None, fetched_at: 
     )
 
 
-async def fetch_all(conn: sqlite3.Connection | None = None, *, with_replies: bool = True) -> dict:
+async def fetch_all(
+    conn: sqlite3.Connection | None = None,
+    *,
+    db_path: str | None = None,
+    access_token: str | None = None,
+    with_replies: bool = True,
+) -> dict:
     """Pull all posts + their comments (+ depth-1 replies) into SQLite.
 
     Returns a summary: {run_id, posts, comments, api_calls}.
     """
     own = conn is None
-    db = conn if conn is not None else connect()
+    db = conn if conn is not None else connect(db_path)
     if own:
         run_migrations(db)
     try:
-        return await _run_fetch(db, with_replies)
+        return await _run_fetch(db, with_replies, access_token)
     finally:
         if own:
             db.close()
 
 
-async def _run_fetch(conn: sqlite3.Connection, with_replies: bool) -> dict:
+async def _run_fetch(
+    conn: sqlite3.Connection, with_replies: bool, access_token: str | None = None
+) -> dict:
     run_id = str(uuid.uuid4())
     conn.execute(
         "INSERT INTO fetch_log (run_id, scope_type, scope_value, started_at) VALUES (?,?,?,?)",
@@ -81,7 +89,7 @@ async def _run_fetch(conn: sqlite3.Connection, with_replies: bool) -> dict:
 
     posts = comments = api_calls = 0
     try:
-        async with IGClient() as ig:
+        async with IGClient(access_token=access_token) as ig:
             for m in await _all_media(ig):
                 upsert_post(conn, _post_from_api(m, _now()))
                 posts += 1

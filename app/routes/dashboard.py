@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 
+from app import auth, registry
 from app.config import settings
 from app.db import connect
 from app.models import Post
@@ -70,14 +71,17 @@ def _time_range(mn: str | None, mx: str | None) -> str:
 
 
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request):
-    conn = connect()
+def index(request: Request, account=auth.current_account):
+    conn = connect(account["db_path"])
     posts = [Post.from_row(r) for r in conn.execute("SELECT * FROM posts ORDER BY timestamp DESC")]
     last = conn.execute("SELECT MAX(ended_at) FROM fetch_log").fetchone()[0]
     mn, mx, total = conn.execute(
         "SELECT MIN(timestamp), MAX(timestamp), COUNT(*) FROM comments"
     ).fetchone()
     conn.close()
+    rconn = registry.connect()
+    accounts = registry.list_accounts(rconn, account["user_id"])
+    rconn.close()
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -85,12 +89,14 @@ def index(request: Request):
             "posts": posts,
             "scope_qs": build_scope_qs("all"),
             "last_refreshed": _fmt_wib(last),
-            "token_days_left": _days_left(settings.ig_token_expires_at),
+            "token_days_left": _days_left(account["token_expires_at"]),
             "sentiment_model": settings.sentiment_model,
-            "ig_username": settings.ig_username,
+            "ig_username": account["username"],
             "total_comments": f"{total:,}",
             "total_posts": len(posts),
             "time_range": _time_range(mn, mx),
+            "accounts": accounts,
+            "active_account_id": account["id"],
         },
     )
 
@@ -102,6 +108,7 @@ def set_scope(
     post_id: str = Form(""),
     date_from: str = Form(""),
     date_to: str = Form(""),
+    account=auth.current_account,
 ):
     qs = build_scope_qs(scope_type, post_id, date_from, date_to)
     return templates.TemplateResponse(
@@ -121,14 +128,17 @@ def _poll_span() -> HTMLResponse:
     )
 
 
-def _do_refresh() -> None:
+def _do_refresh(db_path: str, token: str) -> None:
     """Background: re-fetch posts/comments, then run sentiment on the new ones."""
     try:
         from app.analysis.sentiment import analyze_comments
+        from app.db import connect as _connect
         from app.fetch import fetch_all
 
-        asyncio.run(fetch_all())
-        analyze_comments()  # idempotent: only the newly-fetched comments
+        asyncio.run(fetch_all(db_path=db_path, access_token=token))
+        c = _connect(db_path)
+        analyze_comments(c)
+        c.close()
     except Exception:
         logger.exception("background refresh failed")
     finally:
@@ -136,12 +146,14 @@ def _do_refresh() -> None:
 
 
 @router.post("/refresh", response_class=HTMLResponse)
-def refresh():
-    if not settings.ig_access_token:
-        return HTMLResponse(_muted("Token Instagram belum diatur — jalankan setup dulu."))
+def refresh(account=auth.current_account):
     if not _refresh_state["running"]:
         _refresh_state["running"] = True
-        threading.Thread(target=_do_refresh, daemon=True).start()
+        threading.Thread(
+            target=_do_refresh,
+            args=(account["db_path"], account["access_token"]),
+            daemon=True,
+        ).start()
     return _poll_span()
 
 

@@ -12,6 +12,7 @@ from collections import Counter
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
+from app import auth
 from app.analysis import phrases, timetrend, wordfreq
 from app.render import charts, export
 from app.render import wordcloud as wc_render
@@ -32,7 +33,11 @@ _TITLES = {
 
 @router.get("/export/{name}", response_class=HTMLResponse)
 def export_modal(
-    request: Request, name: str, scope_type: str = "all", scope_value: str | None = None
+    request: Request,
+    name: str,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    account=auth.current_account,
 ):
     if name not in CHART_NAMES:
         return HTMLResponse("", status_code=404)
@@ -50,11 +55,12 @@ def export_download(
     watermark: str | None = None,
     scope_type: str = "all",
     scope_value: str | None = None,
+    account=auth.current_account,
 ):
     if name not in CHART_NAMES:
         return Response("unknown chart", status_code=404)
     wm = watermark or None  # treat empty string as "no watermark"
-    comments, analyses = scope_data(scope_type, scope_value)
+    comments, analyses = scope_data(account["db_path"], scope_type, scope_value)
     try:
         if name == "sentiment":
             dist = Counter(analyses.get(c.id, "unanalyzed") for c in comments)
