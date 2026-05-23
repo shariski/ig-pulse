@@ -1,0 +1,22 @@
+# Secrets & local data
+.env
+ig_pulse.db
+*.db
+*.db-journal
+logs/
+exports/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Tooling caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# OS / editor
+.DS_Store
