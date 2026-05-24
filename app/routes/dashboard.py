@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import logging
-import threading
 from datetime import UTC, datetime
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
@@ -15,13 +12,12 @@ from fastapi.responses import HTMLResponse
 from app import auth, registry
 from app.config import settings
 from app.db import connect
+from app.fetch_jobs import is_running, start_fetch
 from app.models import Post
 from app.routes.analysis import scope_data
 from app.templating import templates
 
 router = APIRouter()
-logger = logging.getLogger("ig_pulse.routes.dashboard")
-_refresh_state = {"running": False}
 
 
 def build_scope_qs(
@@ -156,38 +152,17 @@ def _poll_span() -> HTMLResponse:
     )
 
 
-def _do_refresh(db_path: str, token: str, ig_user_id: str) -> None:
-    """Background: re-fetch posts/comments, then run sentiment on the new ones."""
-    try:
-        from app.analysis.sentiment import analyze_comments
-        from app.db import connect as _connect
-        from app.fetch import fetch_all
-
-        asyncio.run(fetch_all(db_path=db_path, access_token=token, ig_user_id=ig_user_id))
-        c = _connect(db_path)
-        analyze_comments(c)
-        c.close()
-    except Exception:
-        logger.exception("background refresh failed")
-    finally:
-        _refresh_state["running"] = False
-
-
 @router.post("/refresh", response_class=HTMLResponse)
 def refresh(account=auth.current_account):
-    if not _refresh_state["running"]:
-        _refresh_state["running"] = True
-        threading.Thread(
-            target=_do_refresh,
-            args=(account["db_path"], account["access_token"], account["ig_user_id"]),
-            daemon=True,
-        ).start()
+    # start_fetch is a no-op if a fetch is already running for this account's DB
+    # (e.g. the first fetch from just adding the account) — never a second writer.
+    start_fetch(account["db_path"], account["access_token"], account["ig_user_id"])
     return _poll_span()
 
 
 @router.get("/refresh/status", response_class=HTMLResponse)
-def refresh_status():
-    if _refresh_state["running"]:
+def refresh_status(account=auth.current_account):
+    if is_running(account["db_path"]):
         return _poll_span()
     resp = HTMLResponse(_muted("✓ Selesai — memuat ulang…"))
     resp.headers["HX-Refresh"] = "true"  # full reload to show fresh data

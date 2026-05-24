@@ -140,15 +140,21 @@ def analyze_comments(
     skipped = [r["id"] for r in rows if not is_analyzable(r["text"])]
     now = datetime.now(UTC).isoformat()
 
-    for cid in skipped:
-        _upsert_analysis(db, cid, "unanalyzed", None, model_name, version, now)
-
+    # Run the (slow, CPU-bound) model BEFORE opening any write transaction. Writing
+    # first — e.g. the skipped upserts — would hold SQLite's single write lock for
+    # the whole model run and make a concurrent fetch hit "database is locked"
+    # (incident 2026-05-24). With no writes until here, the lock window is just the
+    # fast batch of inserts.
+    labels: list[tuple[str, float]] = []
     if analyzable:
         labels = classify_texts(
             [t for _, t in analyzable], model_name, batch_size=batch_size, revision=revision
         )
-        for (cid, _), (label, score) in zip(analyzable, labels, strict=True):
-            _upsert_analysis(db, cid, label, score, model_name, version, now)
+
+    for cid in skipped:
+        _upsert_analysis(db, cid, "unanalyzed", None, model_name, version, now)
+    for (cid, _), (label, score) in zip(analyzable, labels, strict=True):
+        _upsert_analysis(db, cid, label, score, model_name, version, now)
 
     db.commit()
     logger.info(

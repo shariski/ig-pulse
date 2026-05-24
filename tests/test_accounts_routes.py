@@ -49,7 +49,7 @@ def test_add_account_creates(client, monkeypatch):
             "IG1", "myhandle", "LONGTOK", "2026-07-01T00:00:00Z"
         ),
     )
-    monkeypatch.setattr("app.routes.accounts._kickoff_fetch", lambda *a, **k: None)
+    monkeypatch.setattr("app.routes.accounts.start_fetch", lambda *a, **k: None)
     r = client.post("/accounts/add", data={"short_token": "SHORT"}, follow_redirects=False)
     assert r.status_code == 302 and r.headers["location"] == "/"
     conn = registry.connect()

@@ -36,6 +36,9 @@ def configure_logging() -> None:
         format=fmt,
         handlers=[file_handler, logging.StreamHandler()],
     )
+    # httpx logs full request URLs at INFO, and our Graph API URLs carry
+    # ?access_token=... — mute it to WARNING so the token never reaches logs (B2).
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 @asynccontextmanager
