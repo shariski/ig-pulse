@@ -1,0 +1,76 @@
+{# Wordfreq drill-down modal — qualitative evidence behind a frequency count.
+   Context: word, samples (list of {handle, when, text, post_title, post_link}),
+            total (int), n (int), sentiment (str), scope_qs (str). #}
+<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
+  <div class="modal" role="dialog" aria-labelledby="wf-sample-title">
+    <header class="modal-header">
+      <div class="modal-header-meta">
+        <div class="modal-eyebrow">Sampel komentar mengandung <strong>"{{ word }}"</strong></div>
+        <h3 class="modal-title" id="wf-sample-title">
+          {{ samples | length }} dari {{ "{:,}".format(total) }} komentar
+        </h3>
+        <div class="modal-sub">
+          Lihat komentar asli untuk paham kenapa kata ini sering muncul.
+          {% if sentiment != 'all' %}
+            <em>Filter sentimen: {{ {'positive':'Positif','neutral':'Netral','negative':'Negatif'}[sentiment] }}.
+            Model bisa salah — ini sampel untuk dicek manual.</em>
+          {% endif %}
+        </div>
+      </div>
+      <button class="modal-close" type="button" aria-label="Tutup"
+              onclick="this.closest('.modal-overlay').remove()">×</button>
+    </header>
+
+    <div class="modal-body">
+      {% if samples %}
+        {% for c in samples %}
+        <div class="comment">
+          <div class="comment-meta">
+            <span class="comment-handle">@{{ c.handle }}</span>
+            <span class="comment-sep">·</span>
+            <span>{{ c.when }}</span>
+          </div>
+          <p class="comment-text">{{ c.text }}</p>
+          <div class="comment-footer">
+            <span class="comment-context">
+              {% if c.post_link %}<a href="{{ c.post_link }}" target="_blank" rel="noopener">Dari: {{ c.post_title }} ↗</a>
+              {% else %}Dari: {{ c.post_title }}{% endif %}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="opacity:0.6;padding:24px 0;">
+          Tidak ada komentar yang mengandung kata ini pada filter saat ini.
+          {% if sentiment != 'all' %}Coba hapus filter sentimen.{% endif %}
+        </p>
+      {% endif %}
+    </div>
+
+    <footer class="modal-footer">
+      <div class="modal-footer-meta">{{ samples | length }} dari {{ "{:,}".format(total) }} · sampel acak</div>
+      <div class="modal-footer-actions">
+        {% if total > samples | length %}
+          <button class="btn-more" type="button"
+                  hx-get="/analysis/wordfreq/sample?word={{ word | urlencode }}&n={{ n }}&{{ scope_qs }}&sentiment={{ sentiment }}"
+                  hx-target="#modal-root" hx-swap="innerHTML">↻ Ambil ulang</button>
+          <button class="btn-more" type="button"
+                  hx-get="/analysis/wordfreq/sample?word={{ word | urlencode }}&n={{ n + 5 }}&{{ scope_qs }}&sentiment={{ sentiment }}"
+                  hx-target="#modal-root" hx-swap="innerHTML">Tampilkan 5 lagi</button>
+        {% endif %}
+        <button class="btn-more" type="button"
+                hx-get="/analysis/wordfreq?{{ scope_qs }}&sentiment={{ sentiment }}&exclude={{ word | urlencode }}"
+                hx-target="#wordfreq-card" hx-swap="outerHTML"
+                onclick="document.querySelector('.modal-overlay').remove()">
+          Kecualikan kata ini
+        </button>
+      </div>
+    </footer>
+  </div>
+</div>
+<script>
+  (function () {
+    function esc(e) { if (e.key === 'Escape') { var o = document.querySelector('.modal-overlay'); if (o) o.remove(); document.removeEventListener('keydown', esc); } }
+    document.addEventListener('keydown', esc);
+  })();
+</script>

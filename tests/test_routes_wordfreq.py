@@ -107,7 +107,6 @@ def test_remove_saved_stopword(authed_client, seeded_comments):
     assert rows == []
 
 
-@pytest.mark.skip(reason="template added in Task 12")
 def test_sample_modal_returns_html(authed_client, seeded_comments):
     r = authed_client.get("/analysis/wordfreq/sample?word=nasi&n=5")
     assert r.status_code == 200
@@ -115,14 +114,14 @@ def test_sample_modal_returns_html(authed_client, seeded_comments):
     assert "modal" in r.text.lower() or "sampel" in r.text.lower()
 
 
-@pytest.mark.skip(reason="template added in Task 12")
 def test_sample_modal_filters_by_sentiment(authed_client, seeded_with_sentiment):
     # 'negativeword' appears ONLY in negative-bucket comments per fixture; the
-    # filter must keep the route 200 (content verification deferred to Task 12).
+    # filter must keep the route 200 and render the modal.
     r = authed_client.get(
         "/analysis/wordfreq/sample?word=negativeword&sentiment=negative&n=10"
     )
     assert r.status_code == 200
+    assert "sampel" in r.text.lower()
 
 
 def test_sample_modal_rejects_invalid_word(authed_client):
@@ -130,7 +129,6 @@ def test_sample_modal_rejects_invalid_word(authed_client):
     assert r.status_code == 400
 
 
-@pytest.mark.skip(reason="template added in Task 12")
 def test_sample_modal_empty_for_no_match(authed_client, seeded_comments):
     r = authed_client.get("/analysis/wordfreq/sample?word=doesnotexist")
     assert r.status_code == 200
