@@ -21,7 +21,11 @@ from app import auth
 from app.analysis import phrases as phrases_mod
 from app.analysis import timetrend, wordfreq
 from app.analysis.tokenize import tokenize
-from app.analysis.user_stopwords import add_user_stopword, remove_user_stopword
+from app.analysis.user_stopwords import (
+    add_user_stopword,
+    list_user_stopwords,
+    remove_user_stopword,
+)
 from app.config import settings
 from app.db import connect, get_comments_in_scope
 from app.models import Post
@@ -299,6 +303,61 @@ def remove_user_stopword_route(
         exclude_self=exclude_self, sentiment=sentiment,
         exclude=exclude, account=account,
     )
+
+
+@router.get("/analysis/wordfreq/filtered", response_class=HTMLResponse)
+def wordfreq_filtered(
+    request: Request,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
+    account=auth.current_account,
+):
+    """Transparency panel: list of words currently being filtered.
+
+    Two groups: user-saved (with × buttons) and built-in (read-only).
+    Each entry shows what its count *would have been* on the current scope,
+    so the user can sanity-check that nothing important is being hidden (B3).
+    """
+    from app.analysis.stopwords import get_base_stopwords
+
+    conn = connect(account["db_path"])
+    try:
+        user_words = list_user_stopwords(conn)
+    finally:
+        conn.close()
+    base_words = sorted(get_base_stopwords())
+
+    # Build hidden-counts for both groups against the current scope.
+    comments, analyses = scope_data(
+        account["db_path"], scope_type, scope_value,
+        exclude_self=exclude_self, self_handle=account["username"],
+    )
+    if sentiment in ("positive", "neutral", "negative"):
+        comments = [c for c in comments if analyses.get(c.id) == sentiment]
+
+    counts: Counter = Counter()
+    for c in comments:
+        counts.update(tokenize(c.text))
+
+    user_entries = [{"word": w, "count": counts.get(w, 0)} for w in user_words]
+    # Cap the built-in list to the 50 highest hidden counts to keep the
+    # panel readable.
+    base_entries = sorted(
+        ({"word": w, "count": counts.get(w, 0)} for w in base_words),
+        key=lambda e: -e["count"],
+    )[:50]
+
+    scope_qs = _scope_qs(scope_type, scope_value, exclude_self)
+    return templates.TemplateResponse(request, "partials/_wordfreq_filtered.html", {
+        "user_entries": user_entries,
+        "base_entries": base_entries,
+        "sentiment": sentiment,
+        "excluded": sorted({w.strip().lower()[:50] for w in exclude if w and w.strip()}),
+        "scope_qs": scope_qs,
+    })
 
 
 @router.get("/analysis/timetrend", response_class=HTMLResponse)
