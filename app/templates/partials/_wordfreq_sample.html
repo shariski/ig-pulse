@@ -59,7 +59,7 @@
                   hx-target="#modal-root" hx-swap="innerHTML">Tampilkan 5 lagi</button>
         {% endif %}
         <button class="btn-more" type="button"
-                hx-get="/analysis/wordfreq?{{ scope_qs }}&sentiment={{ sentiment }}&exclude={{ word | urlencode }}"
+                hx-get="/analysis/wordfreq?{{ scope_qs }}&sentiment={{ sentiment }}{% for e in exclude %}&exclude={{ e | urlencode }}{% endfor %}&exclude={{ word | urlencode }}"
                 hx-target="#wordfreq-card" hx-swap="outerHTML"
                 onclick="document.querySelector('.modal-overlay').remove()">
           Kecualikan kata ini

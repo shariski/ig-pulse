@@ -55,7 +55,7 @@
     <div class="cloud-words">
       {% for w in cloud_words %}
         <a class="cloud-word {{ w.cls }}" href="#"
-           hx-get="/analysis/wordfreq/sample?word={{ w.word | urlencode }}&n=5&{{ base_qs }}&sentiment={{ sentiment }}"
+           hx-get="/analysis/wordfreq/sample?word={{ w.word | urlencode }}&n=5&{{ base_qs }}&sentiment={{ sentiment }}{% if excl_param %}&{{ excl_param }}{% endif %}"
            hx-target="#modal-root" hx-swap="innerHTML">{{ w.word }}</a>
       {% endfor %}
     </div>
@@ -63,7 +63,7 @@
       <div class="top-list-title">Top {{ top_items | length }}</div>
       {% for it in top_items %}
       <a class="top-item" href="#"
-         hx-get="/analysis/wordfreq/sample?word={{ it.word | urlencode }}&n=5&{{ base_qs }}&sentiment={{ sentiment }}"
+         hx-get="/analysis/wordfreq/sample?word={{ it.word | urlencode }}&n=5&{{ base_qs }}&sentiment={{ sentiment }}{% if excl_param %}&{{ excl_param }}{% endif %}"
          hx-target="#modal-root" hx-swap="innerHTML">
         <span class="rank">{{ "%02d" | format(it.rank) }}</span>
         <span class="word">{{ it.word }}</span>

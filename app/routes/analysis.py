@@ -438,6 +438,7 @@ def wordfreq_sample(
     scope_value: str | None = None,
     exclude_self: bool = False,
     sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
     account=auth.current_account,
 ):
     """Drill-down: return a modal listing up to *n* random comments containing
@@ -495,6 +496,7 @@ def wordfreq_sample(
         "n": n,
         "sentiment": sentiment,
         "scope_qs": scope_qs,
+        "exclude": sorted({w.strip().lower()[:50] for w in exclude if w and w.strip()}),
     })
 
 

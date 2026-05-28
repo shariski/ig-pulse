@@ -155,3 +155,15 @@ def test_filtered_panel_endpoint_exists(authed_client):
     except TemplateNotFound:
         return  # routing worked; only the template is missing (Task 13)
     assert r.status_code != 404
+
+
+def test_kecualikan_button_preserves_existing_excludes(authed_client, seeded_comments):
+    """When the modal's 'Kecualikan kata ini' is clicked with existing chips,
+    the resulting URL should include all prior excludes PLUS the new word."""
+    r = authed_client.get("/analysis/wordfreq/sample?word=nasi&n=5&exclude=iya&exclude=mantap")
+    assert r.status_code == 200
+    # The "Kecualikan kata ini" link should contain all three exclude params:
+    # iya, mantap (preserved) + nasi (new).
+    assert "exclude=iya" in r.text
+    assert "exclude=mantap" in r.text
+    assert "exclude=nasi" in r.text
