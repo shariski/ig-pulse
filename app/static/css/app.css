@@ -253,8 +253,11 @@ a { color: inherit; }
 .top-item .word { font-family: var(--font-display); font-weight: 500; }
 .top-item .count { font-family: var(--font-mono); font-size: 11px; opacity: 0.5; }
 
-/* Wordfreq controls (sentiment pills, exclusion chips, filtered-link). */
-.wf-controls { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+/* Wordfreq controls — single toolbar row with collapsible drawer (B6 / B9). */
+.wf-toolbar {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+}
 .wf-sentiment-filter { display: flex; gap: 6px; flex-wrap: wrap; }
 .wf-pill {
   padding: 4px 10px; border-radius: 999px;
@@ -264,23 +267,72 @@ a { color: inherit; }
   text-decoration: none; color: inherit; cursor: pointer;
 }
 .wf-pill.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-.wf-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
-.wf-chips-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.5; }
-.wf-chip {
-  display: inline-flex; gap: 4px; align-items: center;
-  padding: 2px 6px; border-radius: var(--radius-sm);
-  background: var(--on-card-fill); font-family: var(--font-mono); font-size: 11px;
+
+/* Drawer (native <details>; no JS). */
+.wf-drawer { flex: 0 0 auto; width: 100%; }
+.wf-drawer > summary { list-style: none; }
+.wf-drawer > summary::-webkit-details-marker { display: none; }
+.wf-drawer-summary {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.6;
+  padding: 4px 0; user-select: none; transition: opacity 0.15s, color 0.15s;
 }
-.wf-chip button { background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 12px; color: inherit; opacity: 0.6; }
-.wf-chip button:hover { opacity: 1; }
-.wf-chip-input {
-  flex: 1; min-width: 160px; padding: 4px 8px;
-  font-family: var(--font-mono); font-size: 11px;
-  border: 1px dashed var(--on-card-line); background: transparent; color: inherit;
-  border-radius: var(--radius-sm);
+.wf-drawer-summary:hover { opacity: 1; color: var(--accent); }
+.wf-drawer-caret { display: inline-block; font-size: 9px; transition: transform 0.15s; }
+.wf-drawer[open] > .wf-drawer-summary .wf-drawer-caret { transform: rotate(180deg); }
+
+.wf-drawer-body {
+  padding-top: 12px; margin-top: 8px;
+  border-top: 1px solid var(--on-card-line-soft);
+  display: flex; flex-direction: column; gap: 16px;
 }
-.wf-filtered-link { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5; text-decoration: none; color: inherit; }
-.wf-filtered-link:hover { opacity: 1; }
+.wf-drawer-section { display: flex; flex-direction: column; gap: 8px; }
+.wf-drawer-section-title {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.18em; opacity: 0.5;
+}
+.wf-chip-list { display: flex; flex-direction: column; gap: 4px; }
+.wf-chip-row {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 4px 6px; border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+.wf-chip-row:hover { background: var(--on-card-fill); }
+.wf-chip-word {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+  flex: 1; min-width: 0;
+}
+.wf-chip-empty {
+  font-family: var(--font-mono); font-size: 11px; opacity: 0.4;
+  padding: 4px 6px; font-style: italic;
+}
+.wf-chip-action {
+  background: none; border: none; padding: 0; cursor: pointer; color: inherit;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.55;
+  border-bottom: 1px solid transparent; transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.wf-chip-action:hover { opacity: 1; color: var(--accent); border-bottom-color: var(--accent); }
+
+.wf-add-row { margin-top: 6px; padding: 0 6px; }
+.wf-add-input {
+  width: 100%; padding: 4px 0 3px; background: transparent;
+  border: none; border-bottom: 1px dashed var(--on-card-line);
+  font-family: var(--font-mono); font-size: 12px; color: inherit;
+  border-radius: 0; outline: none; transition: border-color 0.15s;
+}
+.wf-add-input::placeholder { opacity: 0.4; }
+.wf-add-input:focus { border-bottom: 1px solid var(--accent); }
+
+.wf-drawer-link {
+  display: inline-block;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.5;
+  text-decoration: none; color: inherit;
+  transition: opacity 0.15s, color 0.15s;
+}
+.wf-drawer-link:hover { opacity: 1; color: var(--accent); }
 
 /* Wordfreq filtered/transparency panel (Task 13). */
 .wf-filtered-panel {

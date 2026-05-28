@@ -18,15 +18,21 @@ def test_wordfreq_fragment_renders_without_filters(authed_client, seeded_comment
 
 def test_wordfreq_fragment_excludes_listed_word(authed_client, seeded_comments):
     """``?exclude=nasi`` must drop the 'nasi' token from the rendered cloud."""
+    import re
+    # The redesign renders chips as `<span class="wf-chip-word">nasi</span>` in the
+    # drawer, so a bare `>nasi<` match would false-positive on the chip itself.
+    # Match the cloud-word anchor markup specifically.
+    in_cloud = re.compile(r'class="cloud-word[^"]*"[^>]*>\s*nasi\s*<')
+
     # Baseline: without the filter, 'nasi' appears in the cloud.
     baseline = authed_client.get("/analysis/wordfreq")
     assert baseline.status_code == 200
-    assert ">nasi<" in baseline.text  # sanity-check the seed actually produced it
+    assert in_cloud.search(baseline.text)  # sanity-check the seed actually produced it
 
     r = authed_client.get("/analysis/wordfreq?exclude=nasi")
     assert r.status_code == 200
-    # No cloud-word span with text 'nasi' should remain.
-    assert ">nasi<" not in r.text
+    # No cloud-word anchor with text 'nasi' should remain.
+    assert not in_cloud.search(r.text)
 
 
 def test_wordfreq_fragment_sentiment_filter_negative(
@@ -43,10 +49,12 @@ def test_wordfreq_fragment_sentiment_filter_negative(
 
 def test_wordfreq_fragment_multiple_exclude_params(authed_client, seeded_comments):
     """Repeated ``?exclude=`` query params combine: each listed word is dropped."""
+    import re
+    in_cloud = lambda w: re.compile(rf'class="cloud-word[^"]*"[^>]*>\s*{w}\s*<')
     r = authed_client.get("/analysis/wordfreq?exclude=nasi&exclude=mantap")
     assert r.status_code == 200
-    assert ">nasi<" not in r.text
-    assert ">mantap<" not in r.text
+    assert not in_cloud("nasi").search(r.text)
+    assert not in_cloud("mantap").search(r.text)
 
 
 def test_wordfreq_fragment_unknown_sentiment_is_treated_as_all(
@@ -167,6 +175,18 @@ def test_filtered_panel_delete_preserves_excludes(authed_client):
     # The × delete link for "iya" should preserve both chips
     assert "exclude=mantap" in r.text
     assert "exclude=banget" in r.text
+
+
+def test_modal_exclude_button_uses_after_request_hook(authed_client, seeded_comments):
+    """The 'Kecualikan kata ini' button must close the modal AFTER the HTMX
+    swap completes (regression for the race where onclick removed the modal
+    before HTMX could dispatch the request)."""
+    r = authed_client.get("/analysis/wordfreq/sample?word=nasi&n=5")
+    assert r.status_code == 200
+    # The exclude button block should use the post-swap hook, not a bare onclick.
+    assert "hx-on:htmx:after-request" in r.text
+    # The old buggy onclick pattern on the exclude button should be gone.
+    assert 'onclick="document.querySelector(\'.modal-overlay\').remove()"' not in r.text
 
 
 def test_saved_stopword_actually_hidden_from_cloud(authed_client, seeded_comments):
