@@ -5,6 +5,8 @@ Public API
 ----------
     word_frequencies(comments: list[Comment], top_n: int = 100,
                      exclude_words: set[str] | None = None) -> list[tuple[str, int]]
+    comments_with_word(comments: list[Comment], word: str, n: int = 5,
+                       seed: int | None = None) -> list[Comment]
 
 Design decisions (explicit — no silent behaviour)
 --------------------------------------------------
@@ -73,3 +75,50 @@ def word_frequencies(
 
     sorted_items = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     return sorted_items[:top_n]
+
+
+import random as _random
+
+
+def comments_with_word(
+    comments: list[Comment],
+    word: str,
+    n: int = 5,
+    seed: int | None = None,
+) -> list[Comment]:
+    """Random sample of comments whose tokenized text contains *word*.
+
+    Match semantics intentionally mirror word_frequencies: the comment text is
+    tokenized via tokenize() (lowercase + emoji-aware + URL/mention stripping)
+    and *word* is matched against the resulting token set via equality —
+    NOT substring. "promo" does not match "promosi". B3 compliance: emoji-only
+    comments are reachable when *word* is an emoji.
+
+    Parameters
+    ----------
+    comments:
+        Full pool to sample from. Caller has already applied scope + sentiment
+        filtering, so this function is purely about matching the word.
+    word:
+        Target token (case-insensitive). Whitespace is stripped.
+    n:
+        Maximum number of results.
+    seed:
+        Optional RNG seed for deterministic sampling (tests pass an int; the
+        route passes None for true randomness).
+
+    Returns
+    -------
+    list[Comment]
+        Up to *n* comments. Empty if no comment contains the word.
+    """
+    target = word.strip().lower()
+    if not target:
+        return []
+    matches = [c for c in comments if target in set(tokenize(c.text))]
+    if not matches:
+        return []
+    rng = _random.Random(seed)
+    if len(matches) <= n:
+        return matches
+    return rng.sample(matches, n)
