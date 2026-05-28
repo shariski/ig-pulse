@@ -3,7 +3,7 @@
 **Date:** 2026-05-28
 **Author:** brainstormed with Claude (explanatory mode)
 **Scope:** MVP enhancement to the existing word frequency feature in IG Pulse
-**Status:** approved by user; ready for implementation plan
+**Status:** implemented (feat/wordfreq-enhancement)
 
 ---
 
