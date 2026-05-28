@@ -44,14 +44,32 @@ def configure_logging() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
+    log = logging.getLogger("ig_pulse")
     conn = connect()
     run_migrations(conn)
     conn.close()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     rconn = _registry.connect()
     _registry.run_migrations(rconn)
+    # Apply data-DB migrations to every existing per-account database so
+    # schema changes (e.g. 002_user_stopwords.sql) reach accounts that
+    # haven't fetched/analyzed since the deploy. Failures are logged but
+    # don't crash startup — individual route handlers degrade gracefully.
+    account_paths = [r[0] for r in rconn.execute("SELECT db_path FROM ig_accounts").fetchall()]
     rconn.close()
-    logging.getLogger("ig_pulse").info("IG Pulse started; db=%s", settings.database_path)
+    for db_path in account_paths:
+        try:
+            aconn = connect(db_path)
+            try:
+                run_migrations(aconn)
+            finally:
+                aconn.close()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("account migration failed for %s: %s", db_path, exc)
+    log.info(
+        "IG Pulse started; db=%s accounts_migrated=%d",
+        settings.database_path, len(account_paths),
+    )
     yield
 
 
