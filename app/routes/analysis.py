@@ -188,6 +188,7 @@ def wordfreq_fragment(
     exclude_self: bool = False,
     sentiment: str = "all",
     exclude: list[str] = Query(default=[]),
+    drawer: str = "",
     account=auth.current_account,
 ):
     try:
@@ -232,11 +233,21 @@ def wordfreq_fragment(
         )
 
         scope_qs = _scope_qs(scope_type, scope_value, exclude_self)
+
+        # Load saved user stopwords for the drawer's "Tersimpan permanen" list.
+        conn = connect(account["db_path"])
+        try:
+            user_saved = list_user_stopwords(conn)
+        finally:
+            conn.close()
+
         return templates.TemplateResponse(request, "partials/frag_wordfreq.html", {
             "cloud_words": cloud_words,
             "top_items": top_items,
             "sentiment": sentiment,
             "excluded": sorted(exclude_words),
+            "user_stopwords": user_saved,
+            "drawer": drawer,
             "scope_qs": scope_qs,
         })
     except Exception:
@@ -253,6 +264,7 @@ def save_user_stopword(
     exclude_self: bool = False,
     sentiment: str = "all",
     exclude: list[str] = Query(default=[]),
+    drawer: str = "",
     account=auth.current_account,
 ):
     """Add *word* to the per-user stopword overlay, then re-render the wordfreq
@@ -273,7 +285,7 @@ def save_user_stopword(
         request,
         scope_type=scope_type, scope_value=scope_value,
         exclude_self=exclude_self, sentiment=sentiment,
-        exclude=exclude, account=account,
+        exclude=exclude, drawer=drawer, account=account,
     )
 
 
@@ -286,6 +298,7 @@ def remove_user_stopword_route(
     exclude_self: bool = False,
     sentiment: str = "all",
     exclude: list[str] = Query(default=[]),
+    drawer: str = "",
     account=auth.current_account,
 ):
     """Remove *word* from the per-user stopword overlay."""
@@ -305,7 +318,7 @@ def remove_user_stopword_route(
         request,
         scope_type=scope_type, scope_value=scope_value,
         exclude_self=exclude_self, sentiment=sentiment,
-        exclude=exclude, account=account,
+        exclude=exclude, drawer=drawer, account=account,
     )
 
 

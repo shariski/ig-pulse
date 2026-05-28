@@ -10,7 +10,7 @@
           {{ samples | length }} dari {{ "{:,}".format(total) }} komentar
         </h3>
         <div class="modal-sub">
-          Lihat komentar asli untuk paham kenapa kata ini sering muncul.
+          Komentar asli yang memuat kata ini.
           {% if sentiment != 'all' %}
             <em>Filter sentimen: {{ {'positive':'Positif','neutral':'Netral','negative':'Negatif'}[sentiment] }}.
             Model bisa salah — ini sampel untuk dicek manual.</em>
@@ -61,7 +61,7 @@
         <button class="btn-more" type="button"
                 hx-get="/analysis/wordfreq?{{ scope_qs }}&sentiment={{ sentiment }}{% for e in exclude %}&exclude={{ e | urlencode }}{% endfor %}&exclude={{ word | urlencode }}"
                 hx-target="#wordfreq-card" hx-swap="outerHTML"
-                onclick="document.querySelector('.modal-overlay').remove()">
+                hx-on:htmx:after-request="document.querySelector('.modal-overlay')?.remove()">
           Kecualikan kata ini
         </button>
       </div>
