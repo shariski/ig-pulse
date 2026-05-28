@@ -346,7 +346,7 @@ def wordfreq_filtered(
     # Cap the built-in list to the 50 highest hidden counts to keep the
     # panel readable.
     base_entries = sorted(
-        ({"word": w, "count": counts.get(w, 0)} for w in base_words),
+        ({"word": w, "count": counts.get(w, 0)} for w in base_words if counts.get(w, 0) > 0),
         key=lambda e: -e["count"],
     )[:50]
 
