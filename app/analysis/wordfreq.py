@@ -32,11 +32,15 @@ from app.analysis.tokenize import tokenize
 from app.models import Comment
 
 
-def word_frequencies(comments: list[Comment], top_n: int = 100) -> list[tuple[str, int]]:
+def word_frequencies(
+    comments: list[Comment],
+    top_n: int = 100,
+    exclude_words: set[str] | None = None,
+) -> list[tuple[str, int]]:
     """Return the top *top_n* word frequencies across all comments.
 
-    For each comment: tokenize the text, drop stopwords, count tokens
-    across all comments in the input.
+    For each comment: tokenize the text, drop stopwords, optionally drop any
+    word in *exclude_words*, and count what remains across all comments.
 
     Parameters
     ----------
@@ -44,22 +48,27 @@ def word_frequencies(comments: list[Comment], top_n: int = 100) -> list[tuple[st
         List of Comment objects to analyse. May be empty.
     top_n:
         Maximum number of (word, count) pairs to return.
+    exclude_words:
+        Optional set of tokens to remove from the result, in addition to the
+        global stopwords. Tokens are compared lowercase (caller is expected
+        to lowercase, but we lowercase defensively).
 
     Returns
     -------
     list[tuple[str, int]]
-        Sorted by count descending, then alphabetically ascending on
-        equal counts. Length is min(top_n, distinct_words).
+        Sorted by count descending, then alphabetically ascending on ties.
+        Length is min(top_n, distinct_words_after_filters).
     """
     stopwords = get_stopwords()
+    exclude_lc: set[str] = {w.lower() for w in exclude_words} if exclude_words else set()
     counts: Counter[str] = Counter()
 
     for comment in comments:
         tokens = tokenize(comment.text)
         for token in tokens:
-            if token not in stopwords:
-                counts[token] += 1
+            if token in stopwords or token in exclude_lc:
+                continue
+            counts[token] += 1
 
-    # Sort: primary = count desc, secondary = word asc (for determinism on ties)
     sorted_items = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     return sorted_items[:top_n]
