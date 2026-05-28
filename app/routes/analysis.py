@@ -21,6 +21,7 @@ from app import auth
 from app.analysis import phrases as phrases_mod
 from app.analysis import timetrend, wordfreq
 from app.analysis.tokenize import tokenize
+from app.analysis.user_stopwords import add_user_stopword, remove_user_stopword
 from app.config import settings
 from app.db import connect, get_comments_in_scope
 from app.models import Post
@@ -51,6 +52,16 @@ _WORD_PARAM_RE = re.compile(
     r"\U0001FA00-\U0001FAFF"
     r"]+$"
 )
+
+
+def _validate_word_param(word: str) -> str | HTMLResponse:
+    """Normalise + whitelist-validate. Returns the cleaned word or a 400 HTMLResponse."""
+    normalised = word.strip().lower()[:50]
+    if not normalised or not _WORD_PARAM_RE.match(normalised):
+        return HTMLResponse(
+            "<div class='error'>Kata tidak valid.</div>", status_code=400,
+        )
+    return normalised
 
 
 def _scope_qs(scope_type: str, scope_value: str | None, exclude_self: bool = False) -> str:
@@ -238,13 +249,11 @@ def save_user_stopword(
 ):
     """Add *word* to the per-user stopword overlay, then re-render the wordfreq
     fragment so the saved word disappears from the cloud immediately."""
-    normalised = word.strip().lower()[:50]
-    if not normalised or not _WORD_PARAM_RE.match(normalised):
-        return HTMLResponse(
-            "<div class='error'>Kata tidak valid.</div>", status_code=400,
-        )
+    result = _validate_word_param(word)
+    if isinstance(result, HTMLResponse):
+        return result
+    normalised = result
 
-    from app.analysis.user_stopwords import add_user_stopword
     conn = connect(account["db_path"])
     try:
         add_user_stopword(conn, normalised)
@@ -272,13 +281,11 @@ def remove_user_stopword_route(
     account=auth.current_account,
 ):
     """Remove *word* from the per-user stopword overlay."""
-    normalised = word.strip().lower()[:50]
-    if not normalised or not _WORD_PARAM_RE.match(normalised):
-        return HTMLResponse(
-            "<div class='error'>Kata tidak valid.</div>", status_code=400,
-        )
+    result = _validate_word_param(word)
+    if isinstance(result, HTMLResponse):
+        return result
+    normalised = result
 
-    from app.analysis.user_stopwords import remove_user_stopword
     conn = connect(account["db_path"])
     try:
         remove_user_stopword(conn, normalised)
@@ -379,11 +386,10 @@ def wordfreq_sample(
 
     Mirrors the sentiment sample modal pattern (B4-style "see the evidence").
     """
-    normalised = word.strip().lower()[:50]
-    if not normalised or not _WORD_PARAM_RE.match(normalised):
-        return HTMLResponse(
-            "<div class='error'>Kata tidak valid.</div>", status_code=400,
-        )
+    result = _validate_word_param(word)
+    if isinstance(result, HTMLResponse):
+        return result
+    normalised = result
 
     comments, analyses = scope_data(
         account["db_path"], scope_type, scope_value,
