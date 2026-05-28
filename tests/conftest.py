@@ -59,6 +59,7 @@ def authed_client(tmp_path, monkeypatch):
         c.post("/accounts/switch", data={"account_id": aid})
         # Stash the account dict on the client so tests can write to its DB.
         c.account = acct  # type: ignore[attr-defined]
+        c.db_path = acct["db_path"]  # type: ignore[attr-defined]
         yield c
 
 

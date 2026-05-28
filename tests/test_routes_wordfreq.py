@@ -69,3 +69,37 @@ def test_wordfreq_fragment_sentiment_filter_no_results_returns_empty_state(
     r = authed_client.get("/analysis/wordfreq?sentiment=positive")
     assert r.status_code == 200
     assert "state-empty" in r.text
+
+
+def test_save_stopword_inserts_row_and_returns_fragment(authed_client, seeded_comments):
+    r = authed_client.post("/analysis/wordfreq/stopwords?word=iya")
+    assert r.status_code == 200
+    assert "cloud-words" in r.text or "frag_wordfreq" in r.text  # refreshed fragment
+
+    # Verify it landed in DB
+    from app.db import connect
+    conn = connect(authed_client.db_path)
+    try:
+        rows = list(conn.execute("SELECT word FROM user_stopwords"))
+    finally:
+        conn.close()
+    assert ("iya",) in [tuple(r) for r in rows]
+
+
+def test_save_stopword_rejects_invalid_word(authed_client):
+    r = authed_client.post("/analysis/wordfreq/stopwords?word=<script>")
+    assert r.status_code == 400
+
+
+def test_remove_saved_stopword(authed_client, seeded_comments):
+    authed_client.post("/analysis/wordfreq/stopwords?word=iya")
+    r = authed_client.delete("/analysis/wordfreq/stopwords?word=iya")
+    assert r.status_code == 200
+
+    from app.db import connect
+    conn = connect(authed_client.db_path)
+    try:
+        rows = list(conn.execute("SELECT word FROM user_stopwords"))
+    finally:
+        conn.close()
+    assert rows == []

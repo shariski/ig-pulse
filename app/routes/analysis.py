@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 from collections import Counter
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
@@ -36,6 +37,19 @@ _BUCKETS = {
     "neutral": ("netral", "neu"),
     "unanalyzed": ("belum dianalisis", "neu"),
 }
+
+# Whitelist: word characters + the emoji ranges tokenize() recognises.
+_WORD_PARAM_RE = re.compile(
+    r"^["
+    r"\w"
+    r"⌀-⏿"
+    r"☀-➿"
+    r"⬀-⯿"
+    r"\U0001F300-\U0001FAFF"
+    r"\U0001F900-\U0001F9FF"
+    r"\U0001FA00-\U0001FAFF"
+    r"]+$"
+)
 
 
 def _scope_qs(scope_type: str, scope_value: str | None, exclude_self: bool = False) -> str:
@@ -208,6 +222,75 @@ def wordfreq_fragment(
     except Exception:
         logger.exception("wordfreq fragment failed")
         return _error(str(request.url))
+
+
+@router.post("/analysis/wordfreq/stopwords", response_class=HTMLResponse)
+def save_user_stopword(
+    request: Request,
+    word: str,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
+    account=auth.current_account,
+):
+    """Add *word* to the per-user stopword overlay, then re-render the wordfreq
+    fragment so the saved word disappears from the cloud immediately."""
+    normalised = word.strip().lower()[:50]
+    if not normalised or not _WORD_PARAM_RE.match(normalised):
+        return HTMLResponse(
+            "<div class='error'>Kata tidak valid.</div>", status_code=400,
+        )
+
+    from app.analysis.user_stopwords import add_user_stopword
+    conn = connect(account["db_path"])
+    try:
+        add_user_stopword(conn, normalised)
+    finally:
+        conn.close()
+
+    logger.info("user_stopword saved: %s", normalised)
+    return wordfreq_fragment(
+        request,
+        scope_type=scope_type, scope_value=scope_value,
+        exclude_self=exclude_self, sentiment=sentiment,
+        exclude=exclude, account=account,
+    )
+
+
+@router.delete("/analysis/wordfreq/stopwords", response_class=HTMLResponse)
+def remove_user_stopword_route(
+    request: Request,
+    word: str,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
+    account=auth.current_account,
+):
+    """Remove *word* from the per-user stopword overlay."""
+    normalised = word.strip().lower()[:50]
+    if not normalised or not _WORD_PARAM_RE.match(normalised):
+        return HTMLResponse(
+            "<div class='error'>Kata tidak valid.</div>", status_code=400,
+        )
+
+    from app.analysis.user_stopwords import remove_user_stopword
+    conn = connect(account["db_path"])
+    try:
+        remove_user_stopword(conn, normalised)
+    finally:
+        conn.close()
+
+    logger.info("user_stopword removed: %s", normalised)
+    return wordfreq_fragment(
+        request,
+        scope_type=scope_type, scope_value=scope_value,
+        exclude_self=exclude_self, sentiment=sentiment,
+        exclude=exclude, account=account,
+    )
 
 
 @router.get("/analysis/timetrend", response_class=HTMLResponse)
