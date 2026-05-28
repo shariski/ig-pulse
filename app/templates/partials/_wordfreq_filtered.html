@@ -1,0 +1,40 @@
+{# Wordfreq "what's filtered" panel — transparency over silent dropping (B3).
+   Context: user_entries (list of {word, count}), base_entries (list of {word, count}),
+            sentiment (str), excluded (list[str]), scope_qs (str). #}
+<div class="wf-filtered-panel">
+  <section>
+    <h4>Kata yang kamu simpan ({{ user_entries | length }})</h4>
+    {% if user_entries %}
+      <ul class="wf-filtered-list">
+        {% for e in user_entries %}
+        <li>
+          <span class="wf-filtered-word">{{ e.word }}</span>
+          <span class="wf-filtered-count">{{ e.count }}×</span>
+          <button type="button" class="wf-remove" aria-label="Hapus dari stopword tersimpan" title="Hapus dari stopword tersimpan"
+                  hx-delete="/analysis/wordfreq/stopwords?word={{ e.word | urlencode }}&{{ scope_qs }}&sentiment={{ sentiment }}{% for ex in excluded %}&exclude={{ ex | urlencode }}{% endfor %}"
+                  hx-target="#wordfreq-card" hx-swap="outerHTML">×</button>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="wf-empty">Belum ada kata yang kamu simpan.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h4>Stopword bawaan (top 50 berdasarkan jumlah yang disembunyikan)</h4>
+    <p class="wf-explainer">Daftar baca-saja dari Sastrawi, NLTK, dan stopwords_custom.txt.</p>
+    {% if base_entries %}
+      <ul class="wf-filtered-list">
+        {% for e in base_entries %}
+        <li>
+          <span class="wf-filtered-word">{{ e.word }}</span>
+          <span class="wf-filtered-count">{{ e.count }}×</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="wf-empty">Tidak ada stopword bawaan yang menyembunyikan kata pada cakupan ini.</p>
+    {% endif %}
+  </section>
+</div>

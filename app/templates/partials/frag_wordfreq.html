@@ -1,17 +1,75 @@
-{# Word frequency card body: editorial HTML word cloud + ranked top list.
-   Context: cloud_words (list of {word, cls}), top_items (list of {rank, word, count}). #}
-<div class="cloud-body">
-  <div class="cloud-words">
-    {% for w in cloud_words %}<span class="cloud-word {{ w.cls }}">{{ w.word }}</span>{% endfor %}
-  </div>
-  <div class="top-list">
-    <div class="top-list-title">Top {{ top_items | length }}</div>
-    {% for it in top_items %}
-    <div class="top-item">
-      <span class="rank">{{ "%02d" | format(it.rank) }}</span>
-      <span class="word">{{ it.word }}</span>
-      <span class="count">{{ "{:,}".format(it.count) }}</span>
+{# Word frequency card body.
+   Context: cloud_words, top_items, sentiment ('all'|'positive'|'neutral'|'negative'),
+            excluded (list[str], alphabetically sorted), scope_qs (string). #}
+
+{% set base_qs = scope_qs %}
+
+{# Build the &exclude=… string from the current excluded list using a |map chain.
+   `urlencode` percent-encodes each value; `join('&exclude=')` interleaves the
+   key, and the leading `exclude=` is prepended once. Empty list -> empty string. #}
+{% set excl_param = ('exclude=' ~ (excluded | map('urlencode') | join('&exclude='))) if excluded else '' %}
+
+<div id="wordfreq-card" class="wordfreq-card">
+  <div class="wf-controls">
+    <div class="wf-sentiment-filter" role="tablist" aria-label="Saring komentar berdasarkan sentimen">
+      {% for key, label in [('all','Semua'), ('positive','😊 Positif'), ('neutral','😐 Netral'), ('negative','😡 Negatif')] %}
+        <a class="wf-pill {{ 'active' if sentiment == key }}"
+           hx-get="/analysis/wordfreq?{{ base_qs }}&sentiment={{ key }}{% if excl_param %}&{{ excl_param }}{% endif %}"
+           hx-target="#wordfreq-card"
+           hx-swap="outerHTML"
+           href="#" role="tab" aria-selected="{{ 'true' if sentiment == key else 'false' }}">{{ label }}</a>
+      {% endfor %}
     </div>
-    {% endfor %}
+
+    <div class="wf-chips">
+      <span class="wf-chips-label">Dikecualikan:</span>
+      {% for w in excluded %}
+        {# Build URL params for "remove this chip" — drops `w` from the excluded list. #}
+        {% set others = excluded | reject('equalto', w) | list %}
+        {% set other_param = ('exclude=' ~ (others | map('urlencode') | join('&exclude='))) if others else '' %}
+        <span class="wf-chip">
+          {{ w }}
+          <button type="button" title="Hapus pengecualian"
+                  hx-get="/analysis/wordfreq?{{ base_qs }}&sentiment={{ sentiment }}{% if other_param %}&{{ other_param }}{% endif %}"
+                  hx-target="#wordfreq-card" hx-swap="outerHTML">×</button>
+          <button type="button" title="Simpan sebagai stopword permanen"
+                  hx-post="/analysis/wordfreq/stopwords?word={{ w | urlencode }}&{{ base_qs }}&sentiment={{ sentiment }}{% if other_param %}&{{ other_param }}{% endif %}"
+                  hx-target="#wordfreq-card" hx-swap="outerHTML">💾</button>
+        </span>
+      {% endfor %}
+      <input class="wf-chip-input" type="text" placeholder="+ tambah pengecualian…"
+             name="exclude"
+             hx-get="/analysis/wordfreq?{{ base_qs }}&sentiment={{ sentiment }}{% if excl_param %}&{{ excl_param }}{% endif %}"
+             hx-trigger="keyup[key=='Enter']"
+             hx-target="#wordfreq-card" hx-swap="outerHTML"
+             hx-include="this"/>
+    </div>
+
+    <a class="wf-filtered-link" href="#"
+       hx-get="/analysis/wordfreq/filtered?{{ base_qs }}&sentiment={{ sentiment }}{% if excl_param %}&{{ excl_param }}{% endif %}"
+       hx-target="#wordfreq-filtered-slot" hx-swap="innerHTML">▸ Lihat kata yang tersembunyi</a>
+    <div id="wordfreq-filtered-slot"></div>
+  </div>
+
+  <div class="cloud-body">
+    <div class="cloud-words">
+      {% for w in cloud_words %}
+        <a class="cloud-word {{ w.cls }}" href="#"
+           hx-get="/analysis/wordfreq/sample?word={{ w.word | urlencode }}&n=5&{{ base_qs }}&sentiment={{ sentiment }}{% if excl_param %}&{{ excl_param }}{% endif %}"
+           hx-target="#modal-root" hx-swap="innerHTML">{{ w.word }}</a>
+      {% endfor %}
+    </div>
+    <div class="top-list">
+      <div class="top-list-title">Top {{ top_items | length }}</div>
+      {% for it in top_items %}
+      <a class="top-item" href="#"
+         hx-get="/analysis/wordfreq/sample?word={{ it.word | urlencode }}&n=5&{{ base_qs }}&sentiment={{ sentiment }}{% if excl_param %}&{{ excl_param }}{% endif %}"
+         hx-target="#modal-root" hx-swap="innerHTML">
+        <span class="rank">{{ "%02d" | format(it.rank) }}</span>
+        <span class="word">{{ it.word }}</span>
+        <span class="count">{{ "{:,}".format(it.count) }}</span>
+      </a>
+      {% endfor %}
+    </div>
   </div>
 </div>

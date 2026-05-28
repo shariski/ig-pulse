@@ -9,16 +9,23 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 from collections import Counter
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from app import auth
 from app.analysis import phrases as phrases_mod
 from app.analysis import timetrend, wordfreq
+from app.analysis.tokenize import tokenize
+from app.analysis.user_stopwords import (
+    add_user_stopword,
+    list_user_stopwords,
+    remove_user_stopword,
+)
 from app.config import settings
 from app.db import connect, get_comments_in_scope
 from app.models import Post
@@ -36,6 +43,29 @@ _BUCKETS = {
     "neutral": ("netral", "neu"),
     "unanalyzed": ("belum dianalisis", "neu"),
 }
+
+# Whitelist: word characters + the emoji ranges tokenize() recognises.
+_WORD_PARAM_RE = re.compile(
+    r"^["
+    r"\w"
+    r"⌀-⏿"
+    r"☀-➿"
+    r"⬀-⯿"
+    r"\U0001F300-\U0001FAFF"
+    r"\U0001F900-\U0001F9FF"
+    r"\U0001FA00-\U0001FAFF"
+    r"]+$"
+)
+
+
+def _validate_word_param(word: str) -> str | HTMLResponse:
+    """Normalise + whitelist-validate. Returns the cleaned word or a 400 HTMLResponse."""
+    normalised = word.strip().lower()[:50]
+    if not normalised or not _WORD_PARAM_RE.match(normalised):
+        return HTMLResponse(
+            "<div class='error'>Kata tidak valid.</div>", status_code=400,
+        )
+    return normalised
 
 
 def _scope_qs(scope_type: str, scope_value: str | None, exclude_self: bool = False) -> str:
@@ -156,29 +186,182 @@ def wordfreq_fragment(
     scope_type: str = "all",
     scope_value: str | None = None,
     exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
     account=auth.current_account,
 ):
     try:
-        comments, _ = scope_data(
+        comments, analyses = scope_data(
             account["db_path"], scope_type, scope_value,
             exclude_self=exclude_self, self_handle=account["username"],
         )
+        # Sentiment filter (B4: still using the sentiment model — caveat
+        # surfaces in the modal header at render time).
+        if sentiment in ("positive", "neutral", "negative"):
+            comments = [c for c in comments if analyses.get(c.id) == sentiment]
+        elif sentiment != "all":
+            # Unknown bucket value -> ignore, treat as "all". Don't 400; HTMX
+            # users can land here via a stale URL.
+            sentiment = "all"
+
         if not comments:
-            return _empty("Belum ada komentar pada cakupan ini.")
-        freqs = wordfreq.word_frequencies(comments, 100)
+            return _empty("Tidak ada komentar pada cakupan ini.")
+
+        exclude_words = {w.strip().lower()[:50] for w in exclude if w and w.strip()}
+        freqs = wordfreq.word_frequencies(
+            comments, 100,
+            exclude_words=exclude_words or None,
+            db_path=account["db_path"],
+        )
         if not freqs:
-            return _empty("Tidak ada kata tersisa setelah penyaringan stopword.")
+            return _empty(
+                "Semua kata teratas dikecualikan. Hapus chip di atas untuk melihat hasil."
+                if exclude_words else
+                "Tidak ada kata tersisa setelah penyaringan stopword."
+            )
+
         cloud_words = []
         for i, (word, _count) in enumerate(freqs[:16]):
             cls = "s1" if i == 0 else "s2" if i < 4 else "s3" if i < 8 else "s4" if i < 12 else "s5"
             cloud_words.append({"word": word, "cls": cls})
         top_items = [{"rank": i + 1, "word": w, "count": c} for i, (w, c) in enumerate(freqs[:10])]
+
+        logger.info(
+            "wordfreq scope=%s/%s sentiment=%s excludes=%d results=%d",
+            scope_type, scope_value, sentiment, len(exclude_words), len(freqs),
+        )
+
+        scope_qs = _scope_qs(scope_type, scope_value, exclude_self)
         return templates.TemplateResponse(request, "partials/frag_wordfreq.html", {
-            "cloud_words": cloud_words, "top_items": top_items,
+            "cloud_words": cloud_words,
+            "top_items": top_items,
+            "sentiment": sentiment,
+            "excluded": sorted(exclude_words),
+            "scope_qs": scope_qs,
         })
     except Exception:
         logger.exception("wordfreq fragment failed")
         return _error(str(request.url))
+
+
+@router.post("/analysis/wordfreq/stopwords", response_class=HTMLResponse)
+def save_user_stopword(
+    request: Request,
+    word: str,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
+    account=auth.current_account,
+):
+    """Add *word* to the per-user stopword overlay, then re-render the wordfreq
+    fragment so the saved word disappears from the cloud immediately."""
+    result = _validate_word_param(word)
+    if isinstance(result, HTMLResponse):
+        return result
+    normalised = result
+
+    conn = connect(account["db_path"])
+    try:
+        add_user_stopword(conn, normalised)
+    finally:
+        conn.close()
+
+    logger.info("user_stopword saved: %s", normalised)
+    return wordfreq_fragment(
+        request,
+        scope_type=scope_type, scope_value=scope_value,
+        exclude_self=exclude_self, sentiment=sentiment,
+        exclude=exclude, account=account,
+    )
+
+
+@router.delete("/analysis/wordfreq/stopwords", response_class=HTMLResponse)
+def remove_user_stopword_route(
+    request: Request,
+    word: str,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
+    account=auth.current_account,
+):
+    """Remove *word* from the per-user stopword overlay."""
+    result = _validate_word_param(word)
+    if isinstance(result, HTMLResponse):
+        return result
+    normalised = result
+
+    conn = connect(account["db_path"])
+    try:
+        remove_user_stopword(conn, normalised)
+    finally:
+        conn.close()
+
+    logger.info("user_stopword removed: %s", normalised)
+    return wordfreq_fragment(
+        request,
+        scope_type=scope_type, scope_value=scope_value,
+        exclude_self=exclude_self, sentiment=sentiment,
+        exclude=exclude, account=account,
+    )
+
+
+@router.get("/analysis/wordfreq/filtered", response_class=HTMLResponse)
+def wordfreq_filtered(
+    request: Request,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
+    account=auth.current_account,
+):
+    """Transparency panel: list of words currently being filtered.
+
+    Two groups: user-saved (with × buttons) and built-in (read-only).
+    Each entry shows what its count *would have been* on the current scope,
+    so the user can sanity-check that nothing important is being hidden (B3).
+    """
+    from app.analysis.stopwords import get_base_stopwords
+
+    conn = connect(account["db_path"])
+    try:
+        user_words = list_user_stopwords(conn)
+    finally:
+        conn.close()
+    base_words = sorted(get_base_stopwords())
+
+    # Build hidden-counts for both groups against the current scope.
+    comments, analyses = scope_data(
+        account["db_path"], scope_type, scope_value,
+        exclude_self=exclude_self, self_handle=account["username"],
+    )
+    if sentiment in ("positive", "neutral", "negative"):
+        comments = [c for c in comments if analyses.get(c.id) == sentiment]
+
+    counts: Counter = Counter()
+    for c in comments:
+        counts.update(tokenize(c.text))
+
+    user_entries = [{"word": w, "count": counts.get(w, 0)} for w in user_words]
+    # Cap the built-in list to the 50 highest hidden counts to keep the
+    # panel readable.
+    base_entries = sorted(
+        ({"word": w, "count": counts.get(w, 0)} for w in base_words if counts.get(w, 0) > 0),
+        key=lambda e: -e["count"],
+    )[:50]
+
+    scope_qs = _scope_qs(scope_type, scope_value, exclude_self)
+    return templates.TemplateResponse(request, "partials/_wordfreq_filtered.html", {
+        "user_entries": user_entries,
+        "base_entries": base_entries,
+        "sentiment": sentiment,
+        "excluded": sorted({w.strip().lower()[:50] for w in exclude if w and w.strip()}),
+        "scope_qs": scope_qs,
+    })
 
 
 @router.get("/analysis/timetrend", response_class=HTMLResponse)
@@ -248,6 +431,77 @@ def phrases_fragment(
     except Exception:
         logger.exception("phrases fragment failed")
         return _error(str(request.url))
+
+
+@router.get("/analysis/wordfreq/sample", response_class=HTMLResponse)
+def wordfreq_sample(
+    request: Request,
+    word: str,
+    n: int = 5,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
+    account=auth.current_account,
+):
+    """Drill-down: return a modal listing up to *n* random comments containing
+    *word*, respecting the current scope and sentiment filter.
+
+    Mirrors the sentiment sample modal pattern (B4-style "see the evidence").
+    """
+    result = _validate_word_param(word)
+    if isinstance(result, HTMLResponse):
+        return result
+    normalised = result
+
+    comments, analyses = scope_data(
+        account["db_path"], scope_type, scope_value,
+        exclude_self=exclude_self, self_handle=account["username"],
+    )
+    if sentiment in ("positive", "neutral", "negative"):
+        comments = [c for c in comments if analyses.get(c.id) == sentiment]
+
+    samples = wordfreq.comments_with_word(comments, normalised, n=n)
+    total = sum(1 for c in comments if normalised in set(tokenize(c.text)))
+
+    # Look up post titles for the "Dari: …" link in each card.
+    post_titles: dict[str, dict[str, str]] = {}
+    conn = connect(account["db_path"])
+    try:
+        for row in conn.execute("SELECT id, caption, permalink FROM posts"):
+            post_titles[row["id"]] = {
+                "title": (row["caption"] or "Tanpa caption")[:60],
+                "link": row["permalink"],
+            }
+    finally:
+        conn.close()
+
+    view_samples = [
+        {
+            "handle": c.author_handle or "anon",
+            "when": _id_datetime(c.timestamp),
+            "text": c.text,
+            "post_title": post_titles.get(c.post_id, {}).get("title", "Post"),
+            "post_link": post_titles.get(c.post_id, {}).get("link"),
+        }
+        for c in samples
+    ]
+
+    scope_qs = _scope_qs(scope_type, scope_value, exclude_self)
+    logger.info(
+        "wordfreq sample word=%s sentiment=%s matches=%d returned=%d",
+        normalised, sentiment, total, len(view_samples),
+    )
+    return templates.TemplateResponse(request, "partials/_wordfreq_sample.html", {
+        "word": normalised,
+        "samples": view_samples,
+        "total": total,
+        "n": n,
+        "sentiment": sentiment,
+        "scope_qs": scope_qs,
+        "exclude": sorted({w.strip().lower()[:50] for w in exclude if w and w.strip()}),
+    })
 
 
 @router.get("/analysis/sentiment/sample", response_class=HTMLResponse)
