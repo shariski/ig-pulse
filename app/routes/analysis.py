@@ -13,7 +13,7 @@ from collections import Counter
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from app import auth
@@ -156,25 +156,54 @@ def wordfreq_fragment(
     scope_type: str = "all",
     scope_value: str | None = None,
     exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
     account=auth.current_account,
 ):
     try:
-        comments, _ = scope_data(
+        comments, analyses = scope_data(
             account["db_path"], scope_type, scope_value,
             exclude_self=exclude_self, self_handle=account["username"],
         )
+        # Sentiment filter (B4: still using the sentiment model — caveat
+        # surfaces in the modal header at render time).
+        if sentiment in ("positive", "neutral", "negative"):
+            comments = [c for c in comments if analyses.get(c.id) == sentiment]
+        elif sentiment != "all":
+            # Unknown bucket value -> ignore, treat as "all". Don't 400; HTMX
+            # users can land here via a stale URL.
+            sentiment = "all"
+
         if not comments:
-            return _empty("Belum ada komentar pada cakupan ini.")
-        freqs = wordfreq.word_frequencies(comments, 100)
+            return _empty("Tidak ada komentar pada cakupan ini.")
+
+        exclude_words = {w.strip().lower()[:50] for w in exclude if w and w.strip()}
+        freqs = wordfreq.word_frequencies(comments, 100, exclude_words=exclude_words or None)
         if not freqs:
-            return _empty("Tidak ada kata tersisa setelah penyaringan stopword.")
+            return _empty(
+                "Semua kata teratas dikecualikan. Hapus chip di atas untuk melihat hasil."
+                if exclude_words else
+                "Tidak ada kata tersisa setelah penyaringan stopword."
+            )
+
         cloud_words = []
         for i, (word, _count) in enumerate(freqs[:16]):
             cls = "s1" if i == 0 else "s2" if i < 4 else "s3" if i < 8 else "s4" if i < 12 else "s5"
             cloud_words.append({"word": word, "cls": cls})
         top_items = [{"rank": i + 1, "word": w, "count": c} for i, (w, c) in enumerate(freqs[:10])]
+
+        logger.info(
+            "wordfreq scope=%s/%s sentiment=%s excludes=%d results=%d",
+            scope_type, scope_value, sentiment, len(exclude_words), len(freqs),
+        )
+
+        scope_qs = _scope_qs(scope_type, scope_value, exclude_self)
         return templates.TemplateResponse(request, "partials/frag_wordfreq.html", {
-            "cloud_words": cloud_words, "top_items": top_items,
+            "cloud_words": cloud_words,
+            "top_items": top_items,
+            "sentiment": sentiment,
+            "excluded": sorted(exclude_words),
+            "scope_qs": scope_qs,
         })
     except Exception:
         logger.exception("wordfreq fragment failed")
