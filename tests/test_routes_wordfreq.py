@@ -167,3 +167,29 @@ def test_filtered_panel_delete_preserves_excludes(authed_client):
     # The × delete link for "iya" should preserve both chips
     assert "exclude=mantap" in r.text
     assert "exclude=banget" in r.text
+
+
+def test_saved_stopword_actually_hidden_from_cloud(authed_client, seeded_comments):
+    """End-to-end regression: saving a stopword via POST must hide it from
+    the next /analysis/wordfreq cloud render. Catches the bug where the
+    overlay was reading the wrong DB path."""
+    # Confirm 'nasi' is present in the cloud BEFORE saving.
+    pre = authed_client.get("/analysis/wordfreq")
+    assert pre.status_code == 200
+    # Cloud renders words inside <a class="cloud-word ...">word</a>. Match on the
+    # word boundary to avoid false positives from substrings.
+    import re
+    word_in_cloud = re.compile(r'class="cloud-word[^"]*"[^>]*>\s*nasi\s*<')
+    assert word_in_cloud.search(pre.text), "'nasi' should appear in the cloud before saving"
+
+    # Save 'nasi' as a permanent stopword.
+    save = authed_client.post("/analysis/wordfreq/stopwords?word=nasi")
+    assert save.status_code == 200
+
+    # Re-render the cloud — 'nasi' must NOT appear.
+    post = authed_client.get("/analysis/wordfreq")
+    assert post.status_code == 200
+    assert not word_in_cloud.search(post.text), (
+        "'nasi' should be hidden from the cloud after saving — multi-account "
+        "stopword overlay should use the per-account DB."
+    )

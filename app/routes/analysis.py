@@ -208,7 +208,11 @@ def wordfreq_fragment(
             return _empty("Tidak ada komentar pada cakupan ini.")
 
         exclude_words = {w.strip().lower()[:50] for w in exclude if w and w.strip()}
-        freqs = wordfreq.word_frequencies(comments, 100, exclude_words=exclude_words or None)
+        freqs = wordfreq.word_frequencies(
+            comments, 100,
+            exclude_words=exclude_words or None,
+            db_path=account["db_path"],
+        )
         if not freqs:
             return _empty(
                 "Semua kata teratas dikecualikan. Hapus chip di atas untuk melihat hasil."

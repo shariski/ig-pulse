@@ -71,13 +71,15 @@ def _load_custom() -> set[str]:
     return words
 
 
-def _load_user_overlay() -> set[str]:
-    """Query user_stopwords table. Empty set on any failure (visible degradation)."""
+def _load_user_overlay(db_path: str | Path | None = None) -> set[str]:
+    """Query user_stopwords table at *db_path*. Falls back to settings.database_path
+    when db_path is None (single-DB legacy callers). Empty set on any failure."""
     try:
         from app.db import connect
         from app.analysis.user_stopwords import list_user_stopwords
 
-        conn = connect(settings.database_path)
+        target = db_path if db_path is not None else settings.database_path
+        conn = connect(target)
         try:
             return set(list_user_stopwords(conn))
         finally:
@@ -108,16 +110,18 @@ def get_base_stopwords() -> set[str]:
     return _base_cache
 
 
-def get_stopwords() -> set[str]:
+def get_stopwords(db_path: str | Path | None = None) -> set[str]:
     """Return the composed stopword set.
 
     Base set (Sastrawi + NLTK + custom file) is cached for the process lifetime.
-    User overlay is re-queried on every call so UI changes are reflected
-    immediately without cache invalidation logic.
+    User overlay is queried from *db_path* on every call (the per-account DB in
+    multi-account installs) so UI changes are reflected immediately without
+    cache invalidation logic. Falls back to ``settings.database_path`` when
+    ``db_path`` is None — keeps single-DB legacy callers working.
 
     Returns
     -------
     set[str]
         Non-empty set; lowercase strings matching tokenize() output.
     """
-    return get_base_stopwords() | _load_user_overlay()
+    return get_base_stopwords() | _load_user_overlay(db_path)

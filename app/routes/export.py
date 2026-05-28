@@ -103,7 +103,9 @@ def export_download(
                 w.strip().lower()[:50] for w in exclude if w and w.strip()
             }
             freqs = wordfreq.word_frequencies(
-                comments, 100, exclude_words=exclude_words or None
+                comments, 100,
+                exclude_words=exclude_words or None,
+                db_path=account["db_path"],
             )
             caption = _wordfreq_footer_caption(sentiment, exclude_words)
             img = wc_render.render_wordcloud(freqs, footer_caption=caption)

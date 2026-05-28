@@ -4,9 +4,15 @@ Word frequency analysis for IG Pulse.
 Public API
 ----------
     word_frequencies(comments: list[Comment], top_n: int = 100,
-                     exclude_words: set[str] | None = None) -> list[tuple[str, int]]
+                     exclude_words: set[str] | None = None,
+                     *, db_path: str | Path | None = None) -> list[tuple[str, int]]
     comments_with_word(comments: list[Comment], word: str, n: int = 5,
                        seed: int | None = None) -> list[Comment]
+
+The keyword-only ``db_path`` parameter on ``word_frequencies`` is threaded
+through to ``get_stopwords()`` so the user-stopword overlay is read from the
+correct per-account DB in multi-account installs. ``None`` falls back to
+``settings.database_path`` (single-DB legacy behaviour).
 
 Design decisions (explicit — no silent behaviour)
 --------------------------------------------------
@@ -29,6 +35,7 @@ Tie-breaking
 """
 
 from collections import Counter
+from pathlib import Path
 
 from app.analysis.stopwords import get_stopwords
 from app.analysis.tokenize import tokenize
@@ -39,6 +46,8 @@ def word_frequencies(
     comments: list[Comment],
     top_n: int = 100,
     exclude_words: set[str] | None = None,
+    *,
+    db_path: str | Path | None = None,
 ) -> list[tuple[str, int]]:
     """Return the top *top_n* word frequencies across all comments.
 
@@ -62,7 +71,7 @@ def word_frequencies(
         Sorted by count descending, then alphabetically ascending on ties.
         Length is min(top_n, distinct_words_after_filters).
     """
-    stopwords = get_stopwords()
+    stopwords = get_stopwords(db_path=db_path)
     exclude_lc: set[str] = {w.lower() for w in exclude_words} if exclude_words else set()
     counts: Counter[str] = Counter()
 
