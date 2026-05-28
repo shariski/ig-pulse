@@ -10,8 +10,8 @@
         <li>
           <span class="wf-filtered-word">{{ e.word }}</span>
           <span class="wf-filtered-count">{{ e.count }}×</span>
-          <button type="button" class="wf-remove" title="Hapus dari stopword tersimpan"
-                  hx-delete="/analysis/wordfreq/stopwords?word={{ e.word | urlencode }}&{{ scope_qs }}&sentiment={{ sentiment }}"
+          <button type="button" class="wf-remove" aria-label="Hapus dari stopword tersimpan" title="Hapus dari stopword tersimpan"
+                  hx-delete="/analysis/wordfreq/stopwords?word={{ e.word | urlencode }}&{{ scope_qs }}&sentiment={{ sentiment }}{% for ex in excluded %}&exclude={{ ex | urlencode }}{% endfor %}"
                   hx-target="#wordfreq-card" hx-swap="outerHTML">×</button>
         </li>
         {% endfor %}

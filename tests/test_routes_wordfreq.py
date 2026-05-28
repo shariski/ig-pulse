@@ -8,8 +8,6 @@ parameters added in Task 6 of the wordfreq enhancement plan. The fixtures
 
 from __future__ import annotations
 
-import pytest
-
 
 def test_wordfreq_fragment_renders_without_filters(authed_client, seeded_comments):
     r = authed_client.get("/analysis/wordfreq")
@@ -158,3 +156,14 @@ def test_kecualikan_button_preserves_existing_excludes(authed_client, seeded_com
     assert "exclude=iya" in r.text
     assert "exclude=mantap" in r.text
     assert "exclude=nasi" in r.text
+
+
+def test_filtered_panel_delete_preserves_excludes(authed_client):
+    """When the user removes a saved stopword from the panel, active exclude
+    chips must survive the round-trip."""
+    authed_client.post("/analysis/wordfreq/stopwords?word=iya")
+    r = authed_client.get("/analysis/wordfreq/filtered?exclude=mantap&exclude=banget")
+    assert r.status_code == 200
+    # The × delete link for "iya" should preserve both chips
+    assert "exclude=mantap" in r.text
+    assert "exclude=banget" in r.text
