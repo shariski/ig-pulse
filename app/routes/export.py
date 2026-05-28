@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, Response
 
 from app import auth
@@ -29,6 +29,23 @@ _TITLES = {
     "timetrend": "Tren Waktu",
     "phrases": "Frasa Dominan",
 }
+_SENTIMENT_LABELS_ID = {
+    "positive": "Positif",
+    "neutral": "Netral",
+    "negative": "Negatif",
+}
+
+
+def _wordfreq_footer_caption(
+    sentiment: str, exclude_words: set[str]
+) -> str | None:
+    """Build the Bahasa Indonesia caption surfacing active filters (B8)."""
+    parts: list[str] = []
+    if sentiment in _SENTIMENT_LABELS_ID:
+        parts.append(f"Sentimen: {_SENTIMENT_LABELS_ID[sentiment]}")
+    if exclude_words:
+        parts.append(f"{len(exclude_words)} kata dikecualikan")
+    return " · ".join(parts) if parts else None
 
 
 @router.get("/export/{name}", response_class=HTMLResponse)
@@ -59,6 +76,8 @@ def export_download(
     scope_type: str = "all",
     scope_value: str | None = None,
     exclude_self: bool = False,
+    sentiment: str = "all",
+    exclude: list[str] = Query(default=[]),
     account=auth.current_account,
 ):
     if name not in CHART_NAMES:
@@ -77,8 +96,17 @@ def export_download(
             png = export.figure_to_png(fig, fmt, wm)
         elif name == "phrases":
             png = export.figure_to_png(charts.phrase_bar(phrases.top_phrases(comments)), fmt, wm)
-        else:  # wordfreq
-            img = wc_render.render_wordcloud(wordfreq.word_frequencies(comments, 100))
+        else:  # wordfreq — B8: export must mirror the on-screen filters/exclusions.
+            if sentiment in ("positive", "neutral", "negative"):
+                comments = [c for c in comments if analyses.get(c.id) == sentiment]
+            exclude_words = {
+                w.strip().lower()[:50] for w in exclude if w and w.strip()
+            }
+            freqs = wordfreq.word_frequencies(
+                comments, 100, exclude_words=exclude_words or None
+            )
+            caption = _wordfreq_footer_caption(sentiment, exclude_words)
+            img = wc_render.render_wordcloud(freqs, footer_caption=caption)
             png = export.image_to_png(img, fmt, wm)
     except ValueError as e:
         return Response(str(e), status_code=400)
