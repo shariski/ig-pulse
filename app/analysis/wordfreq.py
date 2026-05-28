@@ -3,7 +3,8 @@ Word frequency analysis for IG Pulse.
 
 Public API
 ----------
-    word_frequencies(comments: list[Comment], top_n: int = 100) -> list[tuple[str, int]]
+    word_frequencies(comments: list[Comment], top_n: int = 100,
+                     exclude_words: set[str] | None = None) -> list[tuple[str, int]]
 
 Design decisions (explicit — no silent behaviour)
 --------------------------------------------------

@@ -41,16 +41,27 @@ def _fixture_comments() -> list[Comment]:
 def test_default_args_match_snapshot():
     """word_frequencies(comments, 100) with no exclude_words produces a
     locked-in result for the fixture comments. Regression alarm for any
-    accidental behaviour change."""
+    accidental behaviour change.
+
+    To intentionally update the snapshot after a deliberate algorithm change,
+    re-run with: UPDATE_SNAPSHOTS=1 pytest tests/test_wordfreq_exclude.py
+    """
+    import os
     result = word_frequencies(_fixture_comments(), 100)
     snapshot_path = Path(__file__).parent / "snapshots" / "wordfreq_top100.json"
-    if not snapshot_path.exists():
-        # First run: write the snapshot. Subsequent runs read & compare.
+
+    if os.environ.get("UPDATE_SNAPSHOTS") == "1":
         snapshot_path.parent.mkdir(exist_ok=True)
         snapshot_path.write_text(
             json.dumps([list(t) for t in result], ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        return  # don't compare to what we just wrote
+
+    assert snapshot_path.exists(), (
+        f"Snapshot missing: {snapshot_path}. Re-run with UPDATE_SNAPSHOTS=1 "
+        f"to regenerate after a deliberate algorithm change."
+    )
     expected = [tuple(t) for t in json.loads(snapshot_path.read_text(encoding="utf-8"))]
     assert result == expected
 
