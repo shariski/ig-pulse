@@ -282,6 +282,24 @@ a { color: inherit; }
 .wf-filtered-link { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5; text-decoration: none; color: inherit; }
 .wf-filtered-link:hover { opacity: 1; }
 
+/* Wordfreq filtered/transparency panel (Task 13). */
+.wf-filtered-panel {
+  margin-top: 10px; padding: 10px;
+  border: 1px dashed var(--on-card-line);
+  border-radius: var(--radius-sm); font-size: 0.85em;
+}
+.wf-filtered-panel h4 { margin: 6px 0; font-size: 1em; }
+.wf-filtered-list {
+  list-style: none; padding: 0; margin: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px;
+}
+.wf-filtered-list li { display: flex; gap: 6px; align-items: center; }
+.wf-filtered-word { font-family: var(--font-mono); }
+.wf-filtered-count { opacity: 0.5; font-size: 0.9em; }
+.wf-remove { background: none; border: none; cursor: pointer; padding: 0 2px; color: inherit; }
+.wf-explainer { opacity: 0.6; margin: 0 0 6px 0; }
+.wf-empty { opacity: 0.6; }
+
 /* ============================ TIME TREND CARD ============================ */
 .trend-summary {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding: 24px 0; margin-bottom: 32px;

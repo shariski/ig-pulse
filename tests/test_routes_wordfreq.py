@@ -135,7 +135,6 @@ def test_sample_modal_empty_for_no_match(authed_client, seeded_comments):
     assert "tidak ada komentar" in r.text.lower()
 
 
-@pytest.mark.skip(reason="template added in Task 13")
 def test_filtered_panel_lists_saved_stopwords(authed_client):
     authed_client.post("/analysis/wordfreq/stopwords?word=iya")
     r = authed_client.get("/analysis/wordfreq/filtered")
@@ -144,17 +143,9 @@ def test_filtered_panel_lists_saved_stopwords(authed_client):
 
 
 def test_filtered_panel_endpoint_exists(authed_client):
-    """The route must be registered. Until Task 13 lands the template, the
-    handler reaches Jinja and raises TemplateNotFound (not a 404). We accept
-    either a non-404 response OR a TemplateNotFound — both prove the routing
-    is wired."""
-    from jinja2 import TemplateNotFound
-
-    try:
-        r = authed_client.get("/analysis/wordfreq/filtered")
-    except TemplateNotFound:
-        return  # routing worked; only the template is missing (Task 13)
-    assert r.status_code != 404
+    r = authed_client.get("/analysis/wordfreq/filtered")
+    # Template now exists in Task 13; route should render successfully.
+    assert r.status_code == 200
 
 
 def test_kecualikan_button_preserves_existing_excludes(authed_client, seeded_comments):
