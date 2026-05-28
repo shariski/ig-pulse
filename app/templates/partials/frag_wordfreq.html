@@ -4,11 +4,10 @@
 
 {% set base_qs = scope_qs %}
 
-{# Build the &exclude=… string from the current excluded list. Done with a
-   manual loop because regex_replace may not be configured in this Jinja env. #}
-{% set excl_parts = [] %}
-{% for w in excluded %}{% set _ = excl_parts.append('exclude=' ~ w | urlencode) %}{% endfor %}
-{% set excl_param = excl_parts | join('&') %}
+{# Build the &exclude=… string from the current excluded list using a |map chain.
+   `urlencode` percent-encodes each value; `join('&exclude=')` interleaves the
+   key, and the leading `exclude=` is prepended once. Empty list -> empty string. #}
+{% set excl_param = ('exclude=' ~ (excluded | map('urlencode') | join('&exclude='))) if excluded else '' %}
 
 <div id="wordfreq-card" class="wordfreq-card">
   <div class="wf-controls">
@@ -26,9 +25,8 @@
       <span class="wf-chips-label">Dikecualikan:</span>
       {% for w in excluded %}
         {# Build URL params for "remove this chip" — drops `w` from the excluded list. #}
-        {% set other_parts = [] %}
-        {% for ow in excluded if ow != w %}{% set _ = other_parts.append('exclude=' ~ ow | urlencode) %}{% endfor %}
-        {% set other_param = other_parts | join('&') %}
+        {% set others = excluded | reject('equalto', w) | list %}
+        {% set other_param = ('exclude=' ~ (others | map('urlencode') | join('&exclude='))) if others else '' %}
         <span class="wf-chip">
           {{ w }}
           <button type="button" title="Hapus pengecualian"
@@ -42,7 +40,7 @@
       <input class="wf-chip-input" type="text" placeholder="+ tambah pengecualian…"
              name="exclude"
              hx-get="/analysis/wordfreq?{{ base_qs }}&sentiment={{ sentiment }}{% if excl_param %}&{{ excl_param }}{% endif %}"
-             hx-trigger="keyup[key=='Enter'] changed delay:50ms"
+             hx-trigger="keyup[key=='Enter']"
              hx-target="#wordfreq-card" hx-swap="outerHTML"
              hx-include="this"/>
     </div>
