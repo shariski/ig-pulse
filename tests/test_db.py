@@ -222,3 +222,19 @@ class TestGetCommentsInScope:
     def test_invalid_period_format(self, conn: sqlite3.Connection):
         with pytest.raises(ValueError):
             get_comments_in_scope(conn, "period", "2024-01-01")
+
+
+def test_user_stopwords_table_created_by_migration(tmp_path):
+    """002_user_stopwords.sql creates the table with the expected schema."""
+    from app.db import connect, run_migrations
+    db_path = tmp_path / "test.db"
+    conn = connect(db_path)
+    try:
+        run_migrations(conn)
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(user_stopwords)")}
+        assert cols == {"word", "created_at"}
+        # word is PRIMARY KEY
+        pk_rows = [r for r in conn.execute("PRAGMA table_info(user_stopwords)") if r[5] == 1]
+        assert len(pk_rows) == 1 and pk_rows[0][1] == "word"
+    finally:
+        conn.close()
