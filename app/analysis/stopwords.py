@@ -4,22 +4,30 @@ Stopword set for IG Pulse analysis modules.
 Public API
 ----------
     get_stopwords() -> set[str]
+    get_base_stopwords() -> set[str]   # base layer only (used by transparency UI)
 
 The returned set is the union of:
     1. Sastrawi Indonesian stopwords (126 words, always available)
     2. NLTK English stopwords (198 words, downloaded on first use)
-    3. Custom list at app/analysis/stopwords_custom.txt (~60–70 tokens)
+    3. Custom list at app/analysis/stopwords_custom.txt
+    4. User overlay rows from the user_stopwords SQLite table (queried per call)
 
-All entries are lowercased. The result is cached after first call
-(module-level _cache variable) so subsequent calls are O(1).
+The "base" union (1+2+3) is computed once and cached. The DB overlay (4) is
+re-queried on every call — the overlay table is small and avoiding cache
+invalidation bugs (when the UI adds/removes a word) is worth the few SQL
+microseconds.
 
 NLTK download handling
 ----------------------
-On first use, the module calls nltk.download('stopwords', quiet=True).
-If this fails for any reason (no network, disk full, permission error),
-the error is caught and logged at WARNING level. In that case the
-English stopword set falls back to an empty set — import never crashes
-and tokenization / analysis continues with Indonesian + custom only.
+On first use, the module calls nltk.download('stopwords', quiet=True). On any
+failure the English set falls back to empty and the rest of the pipeline still
+works.
+
+User-stopwords DB unavailability
+--------------------------------
+If the DB file is missing or unreadable, the overlay falls back to an empty
+set and the base stopwords are returned. The user sees their saved words stop
+filtering — visible degradation, not a crash.
 """
 
 from __future__ import annotations
@@ -29,17 +37,15 @@ from pathlib import Path
 
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
-# Module-level cache; None means "not yet computed".
-_cache: set[str] | None = None
-
-# Path to the custom file is resolved relative to *this* module, not CWD.
+_base_cache: set[str] | None = None
 _CUSTOM_FILE = Path(__file__).parent / "stopwords_custom.txt"
 
 
 def _load_nltk_english() -> set[str]:
-    """Return NLTK English stopwords, or empty set on any failure."""
     try:
         import nltk
 
@@ -53,7 +59,6 @@ def _load_nltk_english() -> set[str]:
 
 
 def _load_custom() -> set[str]:
-    """Return tokens from stopwords_custom.txt (comments and blanks stripped)."""
     words: set[str] = set()
     if not _CUSTOM_FILE.exists():
         logger.warning("Custom stopwords file not found: %s", _CUSTOM_FILE)
@@ -66,31 +71,53 @@ def _load_custom() -> set[str]:
     return words
 
 
-def get_stopwords() -> set[str]:
-    """Return the composed stopword set (Sastrawi ID ∪ NLTK EN ∪ custom).
+def _load_user_overlay() -> set[str]:
+    """Query user_stopwords table. Empty set on any failure (visible degradation)."""
+    try:
+        from app.db import connect
+        from app.analysis.user_stopwords import list_user_stopwords
 
-    The set is computed once and cached for the lifetime of the process.
-    All tokens are lowercase strings, matching the output of tokenize().
+        conn = connect(settings.database_path)
+        try:
+            return set(list_user_stopwords(conn))
+        finally:
+            conn.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("user_stopwords overlay unavailable: %s. Using empty overlay.", exc)
+        return set()
 
-    Returns
-    -------
-    set[str]
-        Non-empty set (at minimum the 126 Sastrawi words are always present).
+
+def get_base_stopwords() -> set[str]:
+    """Public: base stopwords (Sastrawi ∪ NLTK ∪ custom file), cached for the process.
+
+    Exposed so the wordfreq /filtered transparency panel can show what's being
+    hidden by the built-in layer (B3 visibility).
     """
-    global _cache
-    if _cache is not None:
-        return _cache
+    global _base_cache
+    if _base_cache is not None:
+        return _base_cache
 
     sastrawi: set[str] = set(StopWordRemoverFactory().get_stop_words())
     english: set[str] = _load_nltk_english()
     custom: set[str] = _load_custom()
-
-    _cache = sastrawi | english | custom
+    _base_cache = sastrawi | english | custom
     logger.debug(
-        "Stopwords loaded: %d Sastrawi + %d EN + %d custom = %d total",
-        len(sastrawi),
-        len(english),
-        len(custom),
-        len(_cache),
+        "Base stopwords loaded: %d Sastrawi + %d EN + %d custom = %d",
+        len(sastrawi), len(english), len(custom), len(_base_cache),
     )
-    return _cache
+    return _base_cache
+
+
+def get_stopwords() -> set[str]:
+    """Return the composed stopword set.
+
+    Base set (Sastrawi + NLTK + custom file) is cached for the process lifetime.
+    User overlay is re-queried on every call so UI changes are reflected
+    immediately without cache invalidation logic.
+
+    Returns
+    -------
+    set[str]
+        Non-empty set; lowercase strings matching tokenize() output.
+    """
+    return get_base_stopwords() | _load_user_overlay()

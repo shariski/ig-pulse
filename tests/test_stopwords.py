@@ -9,11 +9,12 @@ def test_returns_nonempty_set():
     assert len(sw) > 0
 
 
-def test_cached_across_calls():
-    """get_stopwords() must return the same object on repeated calls (cached)."""
+def test_returns_equal_set_across_calls():
+    """get_stopwords() returns a value-equal set on each call. Identity is
+    not guaranteed because the user-stopwords overlay is recomposed per call."""
     sw1 = get_stopwords()
     sw2 = get_stopwords()
-    assert sw1 is sw2
+    assert sw1 == sw2
 
 
 def test_known_indonesian_word_present():
@@ -70,3 +71,43 @@ def test_custom_url_artefacts_present():
     sw = get_stopwords()
     for token in ["http", "https", "www"]:
         assert token in sw, f"Expected URL artefact {token!r} in stopwords"
+
+
+def test_user_stopwords_overlay_included(tmp_path, monkeypatch):
+    """Words saved into user_stopwords appear in get_stopwords() output."""
+    from app.analysis.stopwords import get_stopwords
+    from app.analysis.user_stopwords import add_user_stopword
+    from app.db import connect, run_migrations
+    from app import config
+
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(config.settings, "database_path", db_path)
+    conn = connect(db_path)
+    try:
+        run_migrations(conn)
+        add_user_stopword(conn, "totallyuniqueword")
+    finally:
+        conn.close()
+
+    sw = get_stopwords()
+    assert "totallyuniqueword" in sw
+
+
+def test_user_stopwords_overlay_lowercased(tmp_path, monkeypatch):
+    """Case-mixed user stopword still excluded after lowercase normalisation."""
+    from app.analysis.stopwords import get_stopwords
+    from app.analysis.user_stopwords import add_user_stopword
+    from app.db import connect, run_migrations
+    from app import config
+
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(config.settings, "database_path", db_path)
+    conn = connect(db_path)
+    try:
+        run_migrations(conn)
+        add_user_stopword(conn, "MixedCaseWord")
+    finally:
+        conn.close()
+
+    sw = get_stopwords()
+    assert "mixedcaseword" in sw
