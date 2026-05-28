@@ -235,11 +235,17 @@ def wordfreq_fragment(
         scope_qs = _scope_qs(scope_type, scope_value, exclude_self)
 
         # Load saved user stopwords for the drawer's "Tersimpan permanen" list.
-        conn = connect(account["db_path"])
+        # Defensive: existing account DBs from before 002_user_stopwords.sql
+        # may not yet have the table. Degrade to empty list rather than 500.
         try:
-            user_saved = list_user_stopwords(conn)
-        finally:
-            conn.close()
+            conn = connect(account["db_path"])
+            try:
+                user_saved = list_user_stopwords(conn)
+            finally:
+                conn.close()
+        except Exception as exc:
+            logger.warning("user_stopwords unavailable for account, defaulting to []: %s", exc)
+            user_saved = []
 
         return templates.TemplateResponse(request, "partials/frag_wordfreq.html", {
             "cloud_words": cloud_words,
@@ -340,11 +346,16 @@ def wordfreq_filtered(
     """
     from app.analysis.stopwords import get_base_stopwords
 
-    conn = connect(account["db_path"])
+    # Defensive: account DBs from before 002_user_stopwords.sql may lack the table.
     try:
-        user_words = list_user_stopwords(conn)
-    finally:
-        conn.close()
+        conn = connect(account["db_path"])
+        try:
+            user_words = list_user_stopwords(conn)
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("user_stopwords unavailable for account, defaulting to []: %s", exc)
+        user_words = []
     base_words = sorted(get_base_stopwords())
 
     # Build hidden-counts for both groups against the current scope.
