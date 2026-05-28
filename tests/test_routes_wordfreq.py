@@ -8,6 +8,8 @@ parameters added in Task 6 of the wordfreq enhancement plan. The fixtures
 
 from __future__ import annotations
 
+import pytest
+
 
 def test_wordfreq_fragment_renders_without_filters(authed_client, seeded_comments):
     r = authed_client.get("/analysis/wordfreq")
@@ -103,3 +105,33 @@ def test_remove_saved_stopword(authed_client, seeded_comments):
     finally:
         conn.close()
     assert rows == []
+
+
+@pytest.mark.skip(reason="template added in Task 12")
+def test_sample_modal_returns_html(authed_client, seeded_comments):
+    r = authed_client.get("/analysis/wordfreq/sample?word=nasi&n=5")
+    assert r.status_code == 200
+    # Renders the partial (we'll create it in Task 12 — for now just assert HTML)
+    assert "modal" in r.text.lower() or "sampel" in r.text.lower()
+
+
+@pytest.mark.skip(reason="template added in Task 12")
+def test_sample_modal_filters_by_sentiment(authed_client, seeded_with_sentiment):
+    # 'negativeword' appears ONLY in negative-bucket comments per fixture; the
+    # filter must keep the route 200 (content verification deferred to Task 12).
+    r = authed_client.get(
+        "/analysis/wordfreq/sample?word=negativeword&sentiment=negative&n=10"
+    )
+    assert r.status_code == 200
+
+
+def test_sample_modal_rejects_invalid_word(authed_client):
+    r = authed_client.get("/analysis/wordfreq/sample?word=<script>")
+    assert r.status_code == 400
+
+
+@pytest.mark.skip(reason="template added in Task 12")
+def test_sample_modal_empty_for_no_match(authed_client, seeded_comments):
+    r = authed_client.get("/analysis/wordfreq/sample?word=doesnotexist")
+    assert r.status_code == 200
+    assert "tidak ada komentar" in r.text.lower()

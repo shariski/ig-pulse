@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse
 from app import auth
 from app.analysis import phrases as phrases_mod
 from app.analysis import timetrend, wordfreq
+from app.analysis.tokenize import tokenize
 from app.config import settings
 from app.db import connect, get_comments_in_scope
 from app.models import Post
@@ -360,6 +361,76 @@ def phrases_fragment(
     except Exception:
         logger.exception("phrases fragment failed")
         return _error(str(request.url))
+
+
+@router.get("/analysis/wordfreq/sample", response_class=HTMLResponse)
+def wordfreq_sample(
+    request: Request,
+    word: str,
+    n: int = 5,
+    scope_type: str = "all",
+    scope_value: str | None = None,
+    exclude_self: bool = False,
+    sentiment: str = "all",
+    account=auth.current_account,
+):
+    """Drill-down: return a modal listing up to *n* random comments containing
+    *word*, respecting the current scope and sentiment filter.
+
+    Mirrors the sentiment sample modal pattern (B4-style "see the evidence").
+    """
+    normalised = word.strip().lower()[:50]
+    if not normalised or not _WORD_PARAM_RE.match(normalised):
+        return HTMLResponse(
+            "<div class='error'>Kata tidak valid.</div>", status_code=400,
+        )
+
+    comments, analyses = scope_data(
+        account["db_path"], scope_type, scope_value,
+        exclude_self=exclude_self, self_handle=account["username"],
+    )
+    if sentiment in ("positive", "neutral", "negative"):
+        comments = [c for c in comments if analyses.get(c.id) == sentiment]
+
+    samples = wordfreq.comments_with_word(comments, normalised, n=n)
+    total = sum(1 for c in comments if normalised in set(tokenize(c.text)))
+
+    # Look up post titles for the "Dari: …" link in each card.
+    post_titles: dict[str, dict[str, str]] = {}
+    conn = connect(account["db_path"])
+    try:
+        for row in conn.execute("SELECT id, caption, permalink FROM posts"):
+            post_titles[row["id"]] = {
+                "title": (row["caption"] or "Tanpa caption")[:60],
+                "link": row["permalink"],
+            }
+    finally:
+        conn.close()
+
+    view_samples = [
+        {
+            "handle": c.author_handle or "anon",
+            "when": _id_datetime(c.timestamp),
+            "text": c.text,
+            "post_title": post_titles.get(c.post_id, {}).get("title", "Post"),
+            "post_link": post_titles.get(c.post_id, {}).get("link"),
+        }
+        for c in samples
+    ]
+
+    scope_qs = _scope_qs(scope_type, scope_value, exclude_self)
+    logger.info(
+        "wordfreq sample word=%s sentiment=%s matches=%d returned=%d",
+        normalised, sentiment, total, len(view_samples),
+    )
+    return templates.TemplateResponse(request, "partials/_wordfreq_sample.html", {
+        "word": normalised,
+        "samples": view_samples,
+        "total": total,
+        "n": n,
+        "sentiment": sentiment,
+        "scope_qs": scope_qs,
+    })
 
 
 @router.get("/analysis/sentiment/sample", response_class=HTMLResponse)
